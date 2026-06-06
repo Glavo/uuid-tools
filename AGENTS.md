@@ -1,0 +1,54 @@
+# Java Code Style Requirements
+
+These rules apply to all Java code written or modified in this repository.
+
+## Nullability
+
+- Annotate every class with JetBrains Annotations `@NotNullByDefault`.
+- Any type, field, parameter, return value, local variable, or generic type argument that may be `null` must be explicitly annotated with `@Nullable`.
+- Nullability must never be implicit.
+
+## Optional Values
+
+- Do not use Java `Optional`.
+- Represent optional or absent values with `@Nullable` instead.
+- Do not introduce APIs that require callers to unwrap `Optional`.
+
+## Java Types
+
+- Use Java `record` types when they fit the data model.
+
+## Immutability Annotations
+
+- Annotate immutable collections and arrays with JetBrains Annotations `@Unmodifiable`.
+- Annotate immutable collection views with JetBrains Annotations `@UnmodifiableView`.
+- Annotate immutable NIO buffers such as `ByteBuffer`, `IntBuffer`, `LongBuffer`, and other `Buffer`
+  subclasses with `@Unmodifiable`.
+- Annotate read-only or immutable views of NIO buffers with `@UnmodifiableView`.
+- For arrays, place the annotation on the array dimension, for example `String @Unmodifiable []`.
+- For multidimensional immutable arrays, annotate every immutable dimension, for example
+  `int @Unmodifiable [] @Unmodifiable []`.
+
+## Documentation
+
+- Every class, field, and method must have documentation.
+- Documentation must use `///` Markdown-style Javadoc comments.
+- Documentation for Java record components must be written in the record class Javadoc with `@param` entries, not as inline comments before individual components.
+- Keep documentation accurate and specific to the actual behavior, constraints, and side effects.
+- Add concise implementation comments inside complex logic whenever they materially improve readability or explain non-obvious behavior.
+- Project documentation must describe architecture decisions, technical rationale, and implementation behavior directly. Do not include wording that refers to user prompts, conversation context, planning negotiations, or why a topic was raised in discussion.
+- When updating project documentation from a discussion, convert conclusions into direct requirements or design decisions. Do not copy explanatory comparison text from the conversation, such as "common patterns", "other systems usually do this", or "this repository chooses this because we discussed it", unless the document intentionally contains a sourced survey section.
+- Project documentation must be written as the target specification, not as a comparison against rejected alternatives. Avoid discussion-article structures such as `Benefits`, `Costs`, `Pros`, `Cons`, `Reasons`, and `Recommended` unless the document is explicitly a design review or trade-off analysis.
+- Prefer positive specification wording in project plans. Define the required layout, behavior, and invariants directly instead of writing rules as exclusions such as "must not use the alternative design", "not recommended", "instead of", or "rather than". Use negative wording only for essential safety, security, or correctness constraints that cannot be stated clearly as a positive rule.
+
+## Gradle
+
+- When invoking Gradle in this repository, always set `GRADLE_USER_HOME` to the workspace-local `.gradle-user-home` directory.
+- Prefer commands such as `./gradlew -g .gradle-user-home ...` or the equivalent environment-variable-based configuration.
+- When running Gradle `test` tasks, use a higher timeout of ten minutes.
+
+## Commit Messages
+
+- After each completed modification, generate a commit message for the user, but do not run git commands to create the commit.
+- The commit message must contain only one short summary paragraph, then one blank line, then `Assisted-by: codex:gpt-5.5`.
+- Do not include a detailed body between the summary paragraph and the `Assisted-by` trailer.
