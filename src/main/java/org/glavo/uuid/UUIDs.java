@@ -3,6 +3,7 @@
 
 package org.glavo.uuid;
 
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -97,6 +98,7 @@ public final class UUIDs {
     /// @param value the string to parse
     /// @return the parsed UUID
     /// @throws IllegalArgumentException if the string is not a valid UUID in any recognized format
+    @Contract(pure = true)
     public static UUID parse(String value) {
         int length = value.length(); // implicit null check
 
@@ -136,6 +138,7 @@ public final class UUIDs {
     /// @param uuid the UUID to extract the timestamp from
     /// @return the timestamp as an [Instant]
     /// @throws IllegalArgumentException if the UUID version does not contain a timestamp
+    @Contract(pure = true)
     public static Instant getInstant(UUID uuid) {
         int version = uuid.version();
         return switch (version) {
@@ -157,6 +160,7 @@ public final class UUIDs {
     ///
     /// @param uuid the UUID to format
     /// @return the compact hex string
+    @Contract(pure = true)
     public static String toCompactString(UUID uuid) {
         return HexFormat.of().toHexDigits(uuid.getMostSignificantBits())
                 + HexFormat.of().toHexDigits(uuid.getLeastSignificantBits());
@@ -168,6 +172,7 @@ public final class UUIDs {
     ///
     /// @param uuid the UUID to format
     /// @return the URN string
+    @Contract(pure = true)
     public static String toURNString(UUID uuid) {
         return "urn:uuid:" + uuid;
     }
@@ -182,6 +187,7 @@ public final class UUIDs {
     ///
     /// @param uuid the UUID to format
     /// @return the OID string
+    @Contract(pure = true)
     public static String toOIDString(UUID uuid) {
         byte[] bytes = new byte[17]; // 1 extra byte for unsigned interpretation
         long msb = uuid.getMostSignificantBits();
@@ -208,6 +214,7 @@ public final class UUIDs {
     /// @param uuid2 the second UUID
     /// @return a negative value, zero, or a positive value as `uuid1` is less
     ///         than, equal to, or greater than `uuid2`
+    @Contract(pure = true)
     public static int compare(UUID uuid1, UUID uuid2) {
         return compare(uuid1.getMostSignificantBits(), uuid1.getLeastSignificantBits(),
                 uuid2.getMostSignificantBits(), uuid2.getLeastSignificantBits());
@@ -222,6 +229,7 @@ public final class UUIDs {
     /// @param leastSigBits2 least significant 64 bits of the second UUID
     /// @return a negative value, zero, or a positive value as the first UUID
     ///         is less than, equal to, or greater than the second
+    @Contract(pure = true)
     public static int compare(long mostSigBits1, long leastSigBits1,
                               long mostSigBits2, long leastSigBits2) {
         int cmp = Long.compareUnsigned(mostSigBits1, mostSigBits2);
@@ -237,6 +245,7 @@ public final class UUIDs {
     /// The returned comparator is a singleton and safe for concurrent use.
     ///
     /// @return the UUID comparator
+    @Contract(pure = true)
     public static Comparator<UUID> comparator() {
         return UUIDComparator.INSTANCE;
     }
@@ -254,6 +263,7 @@ public final class UUIDs {
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name to hash
     /// @return a version-3 UUID
+    @Contract(pure = true)
     public static UUID v3(@Nullable UUID namespace, String name) {
         return v3(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
@@ -266,6 +276,7 @@ public final class UUIDs {
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name bytes to hash
     /// @return a version-3 UUID
+    @Contract(pure = true)
     public static UUID v3(@Nullable UUID namespace, byte[] name) {
         return nameBasedUUID(name, namespace, "MD5", 3);
     }
@@ -279,6 +290,7 @@ public final class UUIDs {
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the buffer whose remaining bytes are hashed
     /// @return a version-3 UUID
+    @Contract(pure = true)
     public static UUID v3(@Nullable UUID namespace, ByteBuffer name) {
         return nameBasedUUID(name, namespace, "MD5", 3);
     }
@@ -296,6 +308,7 @@ public final class UUIDs {
     /// @param mostSigBits  the most significant 64 bits (before version stamping)
     /// @param leastSigBits the least significant 64 bits (before variant stamping)
     /// @return a version-4 UUID
+    @Contract(pure = true)
     public static UUID v4(long mostSigBits, long leastSigBits) {
         return newWithVersion(mostSigBits, leastSigBits, 4);
     }
@@ -328,6 +341,7 @@ public final class UUIDs {
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name to hash
     /// @return a version-5 UUID
+    @Contract(pure = true)
     public static UUID v5(@Nullable UUID namespace, String name) {
         return v5(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
@@ -340,6 +354,7 @@ public final class UUIDs {
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name bytes to hash
     /// @return a version-5 UUID
+    @Contract(pure = true)
     public static UUID v5(@Nullable UUID namespace, byte[] name) {
         return nameBasedUUID(name, namespace, "SHA-1", 5);
     }
@@ -353,6 +368,7 @@ public final class UUIDs {
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the buffer whose remaining bytes are hashed
     /// @return a version-5 UUID
+    @Contract(mutates = "param2")
     public static UUID v5(@Nullable UUID namespace, ByteBuffer name) {
         return nameBasedUUID(name, namespace, "SHA-1", 5);
     }
@@ -370,6 +386,7 @@ public final class UUIDs {
     /// @param randomBits random bits filling the non-timestamp, non-version,
     ///                   non-variant positions
     /// @return a version-7 UUID
+    @Contract(pure = true)
     public static UUID v7(Instant instant, long randomBits) {
         return v7(instant.toEpochMilli(), randomBits);
     }
@@ -389,6 +406,7 @@ public final class UUIDs {
     /// @param epochMilli the Unix epoch millisecond timestamp
     /// @param randomBits random bits filling the non-timestamp positions
     /// @return a version-7 UUID
+    @Contract(pure = true)
     public static UUID v7(long epochMilli, long randomBits) {
         // Most significant 64 bits: 48-bit timestamp | 12 random bits (version set by newWithVersion)
         long mostSigBits = ((epochMilli & 0xFFFF_FFFF_FFFFL) << 16)
@@ -436,6 +454,7 @@ public final class UUIDs {
     /// @param mostSigBits  the most significant 64 bits (before version stamping)
     /// @param leastSigBits the least significant 64 bits (before variant stamping)
     /// @return a version-8 UUID
+    @Contract(pure = true)
     public static UUID v8(long mostSigBits, long leastSigBits) {
         return newWithVersion(mostSigBits, leastSigBits, 8);
     }
@@ -455,6 +474,7 @@ public final class UUIDs {
     /// @param leastSigBits the least significant 64 bits
     /// @param version      the UUID version (0–15)
     /// @return a UUID with the specified version and variant bits set
+    @Contract(pure = true)
     public static UUID newWithVersion(long mostSigBits, long leastSigBits, int version) {
         // Clear version bits (48–51) and set the requested version
         mostSigBits = (mostSigBits & 0xFFFF_FFFF_FFFF_0FFFL)
