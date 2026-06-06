@@ -107,6 +107,25 @@ class UUIDsTest {
     }
 
     @Test
+    void toBase62StringNil() {
+        assertEquals("0000000000000000000000", UUIDs.toBase62String(UUIDs.NIL));
+    }
+
+    @Test
+    void toBase62StringRoundTrip() {
+        UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        String base62 = UUIDs.toBase62String(uuid);
+        assertEquals(22, base62.length());
+        assertEquals(uuid, UUIDs.parse(base62));
+    }
+
+    @Test
+    void parseBase62Max() {
+        String base62Max = UUIDs.toBase62String(UUIDs.MAX);
+        assertEquals(UUIDs.MAX, UUIDs.parse(base62Max));
+    }
+
+    @Test
     void toOIDStringProducesValidOid() {
         UUID uuid = UUIDs.NIL;
         assertEquals("2.25.0", UUIDs.toOIDString(uuid));

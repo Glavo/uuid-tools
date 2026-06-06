@@ -41,7 +41,7 @@ import java.util.random.RandomGenerator;
 ///   UUIDs ([#NAMESPACE_DNS], [#NAMESPACE_URL], [#NAMESPACE_OID],
 ///   [#NAMESPACE_X500]).
 /// - Parsing from multiple string formats via [#parse(String)].
-/// - Formatting to compact, URN, and OID string representations.
+/// - Formatting to compact, URN, OID, and Base62 string representations.
 /// - Timestamp extraction from time-based UUIDs via [#getInstant(UUID)].
 /// - Unsigned lexicographic comparison via [#compare(UUID, UUID)] and
 ///   [#comparator()].
@@ -94,6 +94,7 @@ public final class UUIDs {
     /// | 32     | Compact (no hyphens)    | `550e8400e29b41d4a716446655440000`              |
     /// | 38     | Windows registry        | `{550e8400-e29b-41d4-a716-446655440000}`        |
     /// | 45     | URN                     | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
+    /// | 22     | Base62                  | `6aGFHbkMKi3UrLaRLGaKzG`                       |
     ///
     /// @param value the string to parse
     /// @return the parsed UUID
@@ -118,6 +119,8 @@ public final class UUIDs {
                 throw new IllegalArgumentException("Invalid UUID string: " + value);
             }
             return parseStandard(value, 9);
+        } else if (length == 22) {
+            return parseBase62(value);
         } else {
             throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
@@ -175,6 +178,37 @@ public final class UUIDs {
     @Contract(pure = true)
     public static String toURNString(UUID uuid) {
         return "urn:uuid:" + uuid;
+    }
+
+    /// Returns the Base62-encoded string representation of the UUID.
+    ///
+    /// The 128-bit UUID value is interpreted as an unsigned integer and
+    /// encoded using the digit set `0-9A-Za-z`. The result is left-padded
+    /// with `0` characters to a fixed length of 22 characters.
+    ///
+    /// Example: the nil UUID produces `0000000000000000000000`.
+    ///
+    /// @param uuid the UUID to format
+    /// @return the 22-character Base62 string
+    @Contract(pure = true)
+    public static String toBase62String(UUID uuid) {
+        // Build unsigned 128-bit value
+        byte[] bytes = new byte[17];
+        long msb = uuid.getMostSignificantBits();
+        long lsb = uuid.getLeastSignificantBits();
+        for (int i = 0; i < 8; i++) {
+            bytes[i + 1] = (byte) (msb >>> (56 - i * 8));
+            bytes[i + 9] = (byte) (lsb >>> (56 - i * 8));
+        }
+        BigInteger value = new BigInteger(bytes);
+        BigInteger base = BigInteger.valueOf(62);
+        char[] buf = new char[22];
+        for (int i = 21; i >= 0; i--) {
+            BigInteger[] divRem = value.divideAndRemainder(base);
+            buf[i] = BASE62_CHARS[divRem[1].intValue()];
+            value = divRem[0];
+        }
+        return new String(buf);
     }
 
     /// Returns the OID (Object Identifier) representation of the UUID,
@@ -493,6 +527,10 @@ public final class UUIDs {
     /// 1582-10-15T00:00:00Z and 1970-01-01T00:00:00Z.
     private static final long GREGORIAN_OFFSET = 0x01B2_1DD2_1381_4000L;
 
+    /// The Base62 character set: `0-9A-Za-z`.
+    private static final char[] BASE62_CHARS =
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
+
     /// Holder for the default [SecureRandom] instance, initialized lazily.
     private static final class RandomGeneratorHolder {
         /// The shared [SecureRandom] instance.
@@ -547,6 +585,31 @@ public final class UUIDs {
         long msb = parseHex(value, 0, 16);
         long lsb = parseHex(value, 16, 32);
         return new UUID(msb, lsb);
+    }
+
+    /// Parses a 22-character Base62 string into a UUID.
+    private static UUID parseBase62(String value) {
+        BigInteger result = BigInteger.ZERO;
+        BigInteger base = BigInteger.valueOf(62);
+        for (int i = 0; i < 22; i++) {
+            int digit = base62Digit(value.charAt(i));
+            if (digit < 0) {
+                throw new IllegalArgumentException("Invalid UUID string: " + value);
+            }
+            result = result.multiply(base).add(BigInteger.valueOf(digit));
+        }
+        // Extract most/least significant 64 bits from the 128-bit value
+        long lsb = result.longValue();
+        long msb = result.shiftRight(64).longValue();
+        return new UUID(msb, lsb);
+    }
+
+    /// Returns the Base62 digit value for a character, or -1 if invalid.
+    private static int base62Digit(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
+        if (c >= 'a' && c <= 'z') return c - 'a' + 36;
+        return -1;
     }
 
     /// Parses a hex substring as an unsigned long value.
