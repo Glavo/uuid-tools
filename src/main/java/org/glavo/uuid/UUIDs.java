@@ -41,89 +41,76 @@ import java.util.random.RandomGenerator;
 ///
 /// <h2 id="uuid-versions">UUID versions</h2>
 ///
-/// The following subsections describe the UUID versions understood by this
-/// class and define the shared behavior referenced by version-specific
-/// methods.
+/// This class supports several UUID versions. Choose the version from the
+/// shape of the identifier you need, not from the version number.
 ///
-/// Use these defaults:
+/// <h3 id="uuid-version-7">Time-ordered UUIDs: version 7 first</h3>
 ///
-/// - For general application IDs that should sort by creation time, use
-///   [#generateV7()]. Version 1 has legacy Gregorian timestamp, clock sequence,
-///   and node fields; version 6 keeps that legacy field model.
-/// - For opaque random IDs that do not need time ordering, use [#generateV4()].
-///   Version 8 is application-defined and requires the application to define
-///   its own uniqueness rules.
-/// - For deterministic IDs derived from stable names, use [#generateV5(UUID, String)].
-///   Version 3 uses MD5 and is kept for compatibility with existing version-3
-///   UUIDs.
-/// - Use version 1 or version 6 when interoperating with systems that require
-///   Gregorian timestamps, clock sequences, or node fields. Version 7 is the
-///   preferred time-ordered UUID format for new systems.
-/// - Use version 8 only for a documented application-specific layout.
+/// For new identifiers that should roughly sort by creation time, use
+/// [#generateV7()]. Version 7 stores a Unix epoch millisecond timestamp followed
+/// by random bits, so it works well for databases, logs, and distributed
+/// application IDs without exposing node information.
 ///
-/// <h3 id="uuid-version-1">Version 1 UUIDs</h3>
-///
-/// Version 1 UUIDs are time-based UUIDs that store a 60-bit timestamp measured
-/// in 100-nanosecond intervals since the Gregorian epoch
-/// `1582-10-15T00:00:00Z`, plus clock sequence and node fields.
-/// [#v1(long, int, long)] accepts those fields directly, [#v1(Instant, int, long)]
-/// converts the instant to the Gregorian timestamp first, and [#generateV1()]
-/// obtains the timestamp, clock sequence, and node from the default time and
-/// random sources.
-///
-/// <h3 id="uuid-version-3">Version 3 UUIDs</h3>
-///
-/// Version 3 UUIDs are deterministic name-based UUIDs using MD5 hashing. The
-/// hash input is the optional namespace UUID encoded as 16 big-endian bytes,
-/// followed by the name bytes. [#generateV3(UUID, String)] and its overloads
-/// compute the MD5 digest; [#v3(byte[])] constructs the UUID from an existing
-/// 16-byte MD5 digest. The version and variant bits are stamped onto the
-/// resulting 128-bit value.
-///
-/// <h3 id="uuid-version-4">Version 4 UUIDs</h3>
-///
-/// Version 4 UUIDs are random UUIDs. [#generateV4()] uses the shared default
-/// [SecureRandom], [#generateV4(RandomGenerator)] uses the supplied random
-/// generator, and [#v4(long, long)] stamps the version and variant bits onto
-/// caller-provided raw random bits.
-///
-/// <h3 id="uuid-version-5">Version 5 UUIDs</h3>
-///
-/// Version 5 UUIDs are deterministic name-based UUIDs using SHA-1 hashing. The
-/// hash input is the optional namespace UUID encoded as 16 big-endian bytes,
-/// followed by the name bytes. [#generateV5(UUID, String)] and its overloads
-/// compute the SHA-1 digest; [#v5(byte[])] constructs the UUID from an existing
-/// 20-byte SHA-1 digest, using the first 16 digest bytes. The version and
-/// variant bits are stamped onto the resulting 128-bit value.
-///
-/// <h3 id="uuid-version-6">Version 6 UUIDs</h3>
-///
-/// Version 6 UUIDs are reordered time-based UUIDs that store the same
-/// Gregorian timestamp model as version 1 with the timestamp bits arranged for
-/// lexicographic ordering. [#v6(long, int, long)] accepts the reordered fields
-/// directly, [#v6(Instant, int, long)] converts the instant to the Gregorian
-/// timestamp first, and [#generateV6()] obtains the timestamp, clock sequence,
-/// and node from the default time and random sources.
-///
-/// <h3 id="uuid-version-7">Version 7 UUIDs</h3>
-///
-/// Version 7 UUIDs are time-ordered UUIDs with a Unix epoch millisecond
-/// timestamp and random bits. The most significant 64 bits contain a 48-bit
-/// millisecond timestamp, the 4-bit version, and 12 random bits. The least
-/// significant 64 bits contain the RFC 9562 variant and 62 random bits.
 /// [#v7(long, long)] accepts the millisecond timestamp and caller-provided
 /// random bits directly; [#v7(Instant, long)] converts the instant to
 /// milliseconds first. [#generateV7()] and
 /// [#generateV7(InstantSource, RandomGenerator)] obtain the timestamp and
 /// random bits from the supplied sources.
 ///
-/// <h3 id="uuid-version-8">Version 8 UUIDs</h3>
+/// <h3 id="uuid-version-1">Legacy time UUIDs: version 1</h3>
 ///
-/// Version 8 UUIDs are custom UUIDs for application-defined layouts.
+/// Use version 1 only when interoperating with systems that require the legacy
+/// UUID timestamp layout, clock sequence, or node field. Version 1 stores a
+/// 60-bit timestamp measured in 100-nanosecond intervals since the Gregorian
+/// epoch `1582-10-15T00:00:00Z`, plus clock sequence and node fields.
+/// [#v1(long, int, long)] accepts those fields directly, [#v1(Instant, int, long)]
+/// converts the instant to the Gregorian timestamp first, and [#generateV1()]
+/// obtains the timestamp, clock sequence, and node from the default time and
+/// random sources.
+///
+/// <h3 id="uuid-version-6">Legacy-compatible ordered UUIDs: version 6</h3>
+///
+/// Use version 6 when a system needs version-1 field semantics but also needs
+/// better lexicographic ordering. Version 6 reorders the version-1 Gregorian
+/// timestamp fields for locality while keeping the same clock sequence and node
+/// model. New systems that only need time ordering should use
+/// [#generateV7()]. [#v6(long, int, long)] accepts the reordered fields
+/// directly, [#v6(Instant, int, long)] converts the instant to the Gregorian
+/// timestamp first, and [#generateV6()] obtains the timestamp, clock sequence,
+/// and node from the default time and random sources.
+///
+/// <h3 id="uuid-version-5">Name-based UUIDs: version 5 first</h3>
+///
+/// For deterministic identifiers derived from stable names, use
+/// [#generateV5(UUID, String)]. The same namespace and name always produce the
+/// same UUID, which is useful for repeatable IDs across systems or runs.
+/// Version 5 uses SHA-1: [#generateV5(UUID, String)] and its overloads compute
+/// the digest; [#v5(byte[])] constructs the UUID from an existing 20-byte
+/// SHA-1 digest, using the first 16 digest bytes.
+///
+/// <h3 id="uuid-version-3">Legacy name-based UUIDs: version 3</h3>
+///
+/// Use version 3 only when compatibility with existing version-3 UUIDs is
+/// required. It has the same namespace-and-name shape as version 5 but uses
+/// MD5. [#generateV3(UUID, String)] and its overloads compute the MD5 digest;
+/// [#v3(byte[])] constructs the UUID from an existing 16-byte MD5 digest.
+///
+/// <h3 id="uuid-version-4">Random UUIDs: version 4</h3>
+///
+/// For opaque random identifiers that do not need time ordering, use
+/// [#generateV4()]. Version 4 is simple and widely supported, but its random
+/// ordering gives poor insertion locality for sorted indexes. [#generateV4()]
+/// uses the shared default [SecureRandom], [#generateV4(RandomGenerator)] uses
+/// the supplied random generator, and [#v4(long, long)] stamps the version and
+/// variant bits onto caller-provided raw random bits.
+///
+/// <h3 id="uuid-version-8">Custom UUIDs: version 8</h3>
+///
+/// Use version 8 only for a documented application-specific layout. UUIDv8 does
+/// not define a uniqueness strategy for you; the application owns the meaning
+/// and collision properties of the non-version, non-variant bits.
 /// [#v8(long, long)] stamps the version and variant bits onto caller-provided
 /// raw 128-bit data and preserves every other bit.
-///
-/// All public methods are thread-safe.
 @NotNullByDefault
 public final class UUIDs {
 
