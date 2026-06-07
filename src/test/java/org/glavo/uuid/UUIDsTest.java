@@ -171,6 +171,63 @@ class UUIDsTest {
         assertEquals("2.25.1", UUIDs.toOIDString(uuid));
     }
 
+    // ---- Byte conversion ----
+
+    @Test
+    void toBytesUsesBigEndianOrder() {
+        UUID uuid = UUID.fromString("00112233-4455-6677-8899-aabbccddeeff");
+        byte[] expected = {
+                0x00, 0x11, 0x22, 0x33,
+                0x44, 0x55, 0x66, 0x77,
+                (byte) 0x88, (byte) 0x99, (byte) 0xAA, (byte) 0xBB,
+                (byte) 0xCC, (byte) 0xDD, (byte) 0xEE, (byte) 0xFF
+        };
+        assertArrayEquals(expected, UUIDs.toBytes(uuid));
+    }
+
+    @Test
+    void fromBytesUsesBigEndianOrder() {
+        byte[] bytes = {
+                0x00, 0x11, 0x22, 0x33,
+                0x44, 0x55, 0x66, 0x77,
+                (byte) 0x88, (byte) 0x99, (byte) 0xAA, (byte) 0xBB,
+                (byte) 0xCC, (byte) 0xDD, (byte) 0xEE, (byte) 0xFF
+        };
+        assertEquals(UUID.fromString("00112233-4455-6677-8899-aabbccddeeff"), UUIDs.fromBytes(bytes));
+    }
+
+    @Test
+    void fromBytesWithOffset() {
+        byte[] bytes = {
+                0x55, 0x66,
+                0x00, 0x11, 0x22, 0x33,
+                0x44, 0x55, 0x66, 0x77,
+                (byte) 0x88, (byte) 0x99, (byte) 0xAA, (byte) 0xBB,
+                (byte) 0xCC, (byte) 0xDD, (byte) 0xEE, (byte) 0xFF,
+                0x77
+        };
+        assertEquals(UUID.fromString("00112233-4455-6677-8899-aabbccddeeff"), UUIDs.fromBytes(bytes, 2));
+    }
+
+    @Test
+    void byteConversionRoundTrip() {
+        UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        assertEquals(uuid, UUIDs.fromBytes(UUIDs.toBytes(uuid)));
+    }
+
+    @Test
+    void fromBytesRejectsInvalidLength() {
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.fromBytes(new byte[15]));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.fromBytes(new byte[17]));
+    }
+
+    @Test
+    void fromBytesWithOffsetRejectsOutOfBounds() {
+        assertThrows(IndexOutOfBoundsException.class, () -> UUIDs.fromBytes(new byte[16], -1));
+        assertThrows(IndexOutOfBoundsException.class, () -> UUIDs.fromBytes(new byte[16], 1));
+        assertThrows(IndexOutOfBoundsException.class, () -> UUIDs.fromBytes(new byte[20], 5));
+    }
+
     // ---- Comparison ----
 
     @Test

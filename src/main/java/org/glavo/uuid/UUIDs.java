@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.InstantSource;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.random.RandomGenerator;
 
@@ -342,6 +343,61 @@ public final class UUIDs {
             bytes[i + 9] = (byte) (lsb >>> (56 - i * 8));
         }
         return "2.25." + new BigInteger(bytes);
+    }
+
+    // ========================================================================
+    // Byte conversion
+    // ========================================================================
+
+    /// Returns the 16-byte big-endian representation of a UUID.
+    ///
+    /// The first eight bytes contain [UUID#getMostSignificantBits()], followed
+    /// by eight bytes containing [UUID#getLeastSignificantBits()].
+    ///
+    /// @param uuid the UUID to convert
+    /// @return a newly allocated 16-byte array
+    @Contract(pure = true)
+    public static byte[] toBytes(UUID uuid) {
+        byte[] bytes = new byte[16];
+        long msb = uuid.getMostSignificantBits();
+        long lsb = uuid.getLeastSignificantBits();
+        for (int i = 0; i < 8; i++) {
+            bytes[i] = (byte) (msb >>> (56 - i * 8));
+            bytes[i + 8] = (byte) (lsb >>> (56 - i * 8));
+        }
+        return bytes;
+    }
+
+    /// Creates a UUID from a 16-byte big-endian representation.
+    ///
+    /// @param bytes the 16-byte UUID representation
+    /// @return the parsed UUID
+    /// @throws IllegalArgumentException if `bytes` is not exactly 16 bytes long
+    @Contract(pure = true)
+    public static UUID fromBytes(byte[] bytes) {
+        if (bytes.length != 16) {
+            throw new IllegalArgumentException("UUID byte array must be 16 bytes");
+        }
+        return fromBytes(bytes, 0);
+    }
+
+    /// Creates a UUID from 16 bytes starting at `offset`.
+    ///
+    /// @param bytes  the byte array containing the UUID representation
+    /// @param offset the offset of the first UUID byte
+    /// @return the parsed UUID
+    /// @throws IndexOutOfBoundsException if `offset` is negative or if fewer
+    ///                                   than 16 bytes are available
+    @Contract(pure = true)
+    public static UUID fromBytes(byte[] bytes, int offset) {
+        Objects.checkFromIndexSize(offset, 16, bytes.length);
+        long msb = 0L;
+        long lsb = 0L;
+        for (int i = 0; i < 8; i++) {
+            msb = (msb << 8) | (bytes[offset + i] & 0xFFL);
+            lsb = (lsb << 8) | (bytes[offset + 8 + i] & 0xFFL);
+        }
+        return new UUID(msb, lsb);
     }
 
     // ========================================================================
@@ -1041,14 +1097,7 @@ public final class UUIDs {
 
     /// Feeds a UUID's 16 big-endian bytes into a digest.
     private static void feedUUID(MessageDigest digest, UUID uuid) {
-        long msb = uuid.getMostSignificantBits();
-        long lsb = uuid.getLeastSignificantBits();
-        byte[] bytes = new byte[16];
-        for (int i = 0; i < 8; i++) {
-            bytes[i] = (byte) (msb >>> (56 - i * 8));
-            bytes[i + 8] = (byte) (lsb >>> (56 - i * 8));
-        }
-        digest.update(bytes);
+        digest.update(toBytes(uuid));
     }
 
     /// Constructs a UUID from the first 16 bytes of a hash digest.

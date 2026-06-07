@@ -152,6 +152,16 @@ Supported formats:
 | URN              | `UUIDs.toURNString(UUID)`     | `UUIDs.parse(String)`      | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
 | Base62           | `UUIDs.toBase62String(UUID)`  | `UUIDs.parseBase62(String)` | `6aGFHbkMKi3UrLaRLGaKzG`                        |
 
+### Binary Conversion
+
+UUIDs can be converted to and from their 16-byte big-endian representation.
+
+```java
+byte[] _ = UUIDs.toBytes(uuid);
+UUID _ = UUIDs.fromBytes(bytes);
+UUID _ = UUIDs.fromBytes(bytes, offset);
+```
+
 ## Requirements
 
 - Java 17 or later
