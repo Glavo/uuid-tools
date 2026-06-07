@@ -257,9 +257,9 @@ public final class UUIDs {
         return uuid.getMostSignificantBits() == -1L && uuid.getLeastSignificantBits() == -1L;
     }
 
-    /// Extracts the embedded timestamp from a version-1, -2, -6, or -7 UUID.
+    /// Extracts the embedded timestamp from a version 1, 2, 6, or 7 UUID.
     ///
-    /// For version-2 UUIDs, the low 32 timestamp bits are not available because
+    /// For version 2 UUIDs, the low 32 timestamp bits are not available because
     /// they are replaced by the local identifier, so this method returns the
     /// lower-bound timestamp with those bits set to zero.
     ///
@@ -278,15 +278,15 @@ public final class UUIDs {
         };
     }
 
-    /// Extracts the Gregorian 100-nanosecond timestamp from a version-1, -2, or -6 UUID.
+    /// Extracts the Gregorian 100-nanosecond timestamp from a version 1, 2, or 6 UUID.
     ///
-    /// For version-2 UUIDs, the low 32 timestamp bits are not available because
+    /// For version 2 UUIDs, the low 32 timestamp bits are not available because
     /// they are replaced by the local identifier, so this method returns the
     /// lower-bound timestamp with those bits set to zero.
     ///
     /// @param uuid the UUID to extract the timestamp from
     /// @return the Gregorian timestamp
-    /// @throws IllegalArgumentException if `uuid` is not a version-1, -2, or -6 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 1, 2, or 6 UUID
     @Contract(pure = true)
     public static long getGregorianTimestamp(UUID uuid) {
         int version = uuid.version();
@@ -299,25 +299,25 @@ public final class UUIDs {
         };
     }
 
-    /// Extracts the Unix epoch millisecond timestamp from a version-7 UUID.
+    /// Extracts the Unix epoch millisecond timestamp from a version 7 UUID.
     ///
     /// @param uuid the UUID to extract the timestamp from
     /// @return the Unix epoch millisecond timestamp
-    /// @throws IllegalArgumentException if `uuid` is not a version-7 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 7 UUID
     @Contract(pure = true)
     public static long getUnixTimestampMillis(UUID uuid) {
         requireVersion(uuid, 7);
         return uuid.getMostSignificantBits() >>> 16;
     }
 
-    /// Extracts the clock sequence from a version-1, -2, or -6 UUID.
+    /// Extracts the clock sequence from a version 1, 2, or 6 UUID.
     ///
-    /// Version-1 and version-6 UUIDs carry a 14-bit clock sequence. Version-2
+    /// Version 1 and version 6 UUIDs carry a 14-bit clock sequence. Version 2
     /// UUIDs carry only a 6-bit clock sequence.
     ///
     /// @param uuid the UUID to extract the clock sequence from
     /// @return the clock sequence
-    /// @throws IllegalArgumentException if `uuid` is not a version-1, -2, or -6 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 1, 2, or 6 UUID
     @Contract(pure = true)
     public static int getClockSequence(UUID uuid) {
         int version = uuid.version();
@@ -329,11 +329,11 @@ public final class UUIDs {
         };
     }
 
-    /// Extracts the node field from a version-1, -2, or -6 UUID.
+    /// Extracts the node field from a version 1, 2, or 6 UUID.
     ///
     /// @param uuid the UUID to extract the node from
     /// @return the 48-bit node field
-    /// @throws IllegalArgumentException if `uuid` is not a version-1, -2, or -6 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 1, 2, or 6 UUID
     @Contract(pure = true)
     public static long getNode(UUID uuid) {
         int version = uuid.version();
@@ -343,44 +343,44 @@ public final class UUIDs {
         return uuid.getLeastSignificantBits() & NODE_MASK;
     }
 
-    /// Extracts the DCE local domain from a version-2 UUID.
+    /// Extracts the DCE local domain from a version 2 UUID.
     ///
     /// @param uuid the UUID to extract the local domain from
     /// @return the 8-bit DCE local domain
-    /// @throws IllegalArgumentException if `uuid` is not a version-2 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 2 UUID
     @Contract(pure = true)
     public static int getDceLocalDomain(UUID uuid) {
         requireVersion(uuid, 2);
         return (int) (uuid.getLeastSignificantBits() >>> 48) & DCE_LOCAL_DOMAIN_MASK;
     }
 
-    /// Extracts the DCE local identifier from a version-2 UUID.
+    /// Extracts the DCE local identifier from a version 2 UUID.
     ///
     /// @param uuid the UUID to extract the local identifier from
     /// @return the 32-bit DCE local identifier as an unsigned `long`
-    /// @throws IllegalArgumentException if `uuid` is not a version-2 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 2 UUID
     @Contract(pure = true)
     public static long getDceLocalIdentifier(UUID uuid) {
         requireVersion(uuid, 2);
         return uuid.getMostSignificantBits() >>> 32;
     }
 
-    /// Extracts the 12-bit `rand_a` field from a version-7 UUID.
+    /// Extracts the 12-bit `rand_a` field from a version 7 UUID.
     ///
     /// @param uuid the UUID to extract `rand_a` from
     /// @return the `rand_a` field
-    /// @throws IllegalArgumentException if `uuid` is not a version-7 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 7 UUID
     @Contract(pure = true)
     public static int getV7RandA(UUID uuid) {
         requireVersion(uuid, 7);
         return (int) (uuid.getMostSignificantBits() & 0x0FFFL);
     }
 
-    /// Extracts the 62-bit `rand_b` field from a version-7 UUID.
+    /// Extracts the 62-bit `rand_b` field from a version 7 UUID.
     ///
     /// @param uuid the UUID to extract `rand_b` from
     /// @return the `rand_b` field
-    /// @throws IllegalArgumentException if `uuid` is not a version-7 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 7 UUID
     @Contract(pure = true)
     public static long getV7RandB(UUID uuid) {
         requireVersion(uuid, 7);
