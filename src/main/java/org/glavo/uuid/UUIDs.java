@@ -125,43 +125,64 @@ public final class UUIDs {
             int dash2 = -1;
             int dash3 = -1;
             int dash4 = -1;
-            int dash5 = -1;
-            boolean hasPlus = false;
+            int dashCount = 0;
+            boolean allHexDigits = true;
+            boolean allJavaHexChars = true;
+            boolean allBase62Digits = true;
             for (int i = 0; i < length; i++) {
                 char ch = value.charAt(i);
                 if (ch == '-') {
-                    if (dash1 < 0) {
+                    dashCount++;
+                    allBase62Digits = false;
+                    if (dashCount == 1) {
                         dash1 = i;
-                    } else if (dash2 < 0) {
+                    } else if (dashCount == 2) {
                         dash2 = i;
-                    } else if (dash3 < 0) {
+                    } else if (dashCount == 3) {
                         dash3 = i;
-                    } else if (dash4 < 0) {
+                    } else if (dashCount == 4) {
                         dash4 = i;
-                    } else {
-                        dash5 = i;
-                        break;
                     }
                 } else if (ch == '+') {
-                    hasPlus = true;
+                    allHexDigits = false;
+                    allBase62Digits = false;
+                } else {
+                    int hexDigit = hexDigit(ch);
+                    if (hexDigit < 0) {
+                        allHexDigits = false;
+                        allJavaHexChars = false;
+                    }
+                    if (base62Digit(ch) < 0) {
+                        allBase62Digits = false;
+                    }
                 }
             }
 
-            if (dash1 >= 0) {
-                if (length == 36 && dash1 == 8 && dash2 == 13 && dash3 == 18 && dash4 == 23 && dash5 < 0
-                        && !hasPlus) {
-                    return parseStandardFields(value, 0);
+            if (dashCount > 0) {
+                if (length == 36 && dash1 == 8 && dash2 == 13 && dash3 == 18 && dash4 == 23
+                        && dashCount == 4 && allHexDigits) {
+                    long msb = parseHexUnchecked(value, 0, 8);
+                    msb = (msb << 16) | parseHexUnchecked(value, 9, 13);
+                    msb = (msb << 16) | parseHexUnchecked(value, 14, 18);
+                    long lsb = parseHexUnchecked(value, 19, 23);
+                    lsb = (lsb << 48) | parseHexUnchecked(value, 24, 36);
+                    return new UUID(msb, lsb);
                 }
-                return parseLenientStandard(value, dash1, dash2, dash3, dash4, dash5);
+                if (!allJavaHexChars) {
+                    throw new IllegalArgumentException("Invalid UUID string: " + value);
+                }
+                return parseLenientStandard(value, dash1, dash2, dash3, dash4, dashCount);
             }
-        }
 
-        if (length == 32) {
-            return parseCompact(value);
-        }
+            if (length == 32 && allHexDigits) {
+                long msb = parseHexUnchecked(value, 0, 16);
+                long lsb = parseHexUnchecked(value, 16, 32);
+                return new UUID(msb, lsb);
+            }
 
-        if (length == 22) {
-            return parseBase62(value);
+            if (length == 22 && allBase62Digits) {
+                return parseBase62(value);
+            }
         }
 
         throw new IllegalArgumentException("Invalid UUID string: " + value);
@@ -652,13 +673,13 @@ public final class UUIDs {
 
     /// Parses a bare hyphenated UUID using the lenient rules of
     /// [UUID#fromString(String)] and precomputed hyphen positions.
-    private static UUID parseLenientStandard(String value, int dash1, int dash2, int dash3, int dash4, int dash5) {
+    private static UUID parseLenientStandard(String value, int dash1, int dash2, int dash3, int dash4, int dashCount) {
         int length = value.length();
         if (length > 36) {
             throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
 
-        if (dash1 < 0 || dash4 < 0 || dash5 >= 0) {
+        if (dashCount != 4) {
             throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
 
@@ -670,14 +691,7 @@ public final class UUIDs {
         return new UUID(msb, lsb);
     }
 
-    /// Parses a compact 32-character hex UUID string (no hyphens).
-    private static UUID parseCompact(String value) {
-        long msb = parseHex(value, 0, 16);
-        long lsb = parseHex(value, 16, 32);
-        return new UUID(msb, lsb);
-    }
-
-    /// Parses a 22-character Base62 string into a UUID.
+    /// Parses a prevalidated 22-character Base62 string into a UUID.
     private static UUID parseBase62(String value) {
         long word0 = 0L;
         long word1 = 0L;
@@ -685,9 +699,6 @@ public final class UUIDs {
         long word3 = 0L;
         for (int i = 0; i < 22; i++) {
             int digit = base62Digit(value.charAt(i));
-            if (digit < 0) {
-                throw new IllegalArgumentException("Invalid UUID string: " + value);
-            }
 
             // Multiply the unsigned 128-bit accumulator by 62 and add the digit.
             long product = word3 * 62L + digit;
@@ -722,15 +733,33 @@ public final class UUIDs {
         return -1;
     }
 
+    /// Returns the hexadecimal digit value for an ASCII character, or -1 if
+    /// invalid.
+    private static int hexDigit(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        return -1;
+    }
+
     /// Parses a hex substring as an unsigned long value.
     private static long parseHex(String value, int start, int end) {
         long result = 0;
         for (int i = start; i < end; i++) {
-            int digit = Character.digit(value.charAt(i), 16);
+            int digit = hexDigit(value.charAt(i));
             if (digit < 0) {
                 throw new IllegalArgumentException("Invalid UUID string: " + value);
             }
             result = (result << 4) | digit;
+        }
+        return result;
+    }
+
+    /// Parses a prevalidated ASCII hex substring as an unsigned long value.
+    private static long parseHexUnchecked(String value, int start, int end) {
+        long result = 0;
+        for (int i = start; i < end; i++) {
+            result = (result << 4) | hexDigit(value.charAt(i));
         }
         return result;
     }
