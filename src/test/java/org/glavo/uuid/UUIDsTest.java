@@ -26,6 +26,8 @@ class UUIDsTest {
         assertEquals(0L, UUIDs.NIL.getMostSignificantBits());
         assertEquals(0L, UUIDs.NIL.getLeastSignificantBits());
         assertEquals("00000000-0000-0000-0000-000000000000", UUIDs.NIL.toString());
+        assertTrue(UUIDs.isNil(UUIDs.NIL));
+        assertFalse(UUIDs.isMax(UUIDs.NIL));
     }
 
     @Test
@@ -33,6 +35,8 @@ class UUIDsTest {
         assertEquals(-1L, UUIDs.MAX.getMostSignificantBits());
         assertEquals(-1L, UUIDs.MAX.getLeastSignificantBits());
         assertEquals("ffffffff-ffff-ffff-ffff-ffffffffffff", UUIDs.MAX.toString());
+        assertFalse(UUIDs.isNil(UUIDs.MAX));
+        assertTrue(UUIDs.isMax(UUIDs.MAX));
     }
 
     @Test
@@ -593,6 +597,70 @@ class UUIDsTest {
     void getInstantUnsupportedVersionThrows() {
         UUID v4 = UUIDs.generateV4();
         assertThrows(IllegalArgumentException.class, () -> UUIDs.getInstant(v4));
+    }
+
+    // ---- Field accessors ----
+
+    @Test
+    void getGregorianTimestampFromV1V2AndV6() {
+        long timestamp = 0x01B2_1DD2_1381_4000L;
+        assertEquals(timestamp, UUIDs.getGregorianTimestamp(UUIDs.v1(timestamp, 0, 0)));
+        assertEquals(0x01B2_1DD2_0000_0000L,
+                UUIDs.getGregorianTimestamp(UUIDs.v2(timestamp, UUIDs.DCE_DOMAIN_PERSON, 501, 0, 0)));
+        assertEquals(timestamp, UUIDs.getGregorianTimestamp(UUIDs.v6(timestamp, 0, 0)));
+    }
+
+    @Test
+    void getClockSequenceFromV1V2AndV6() {
+        long timestamp = 0x01B2_1DD2_1381_4000L;
+        assertEquals(0x1234, UUIDs.getClockSequence(UUIDs.v1(timestamp, 0x1234, 0)));
+        assertEquals(0x3F, UUIDs.getClockSequence(UUIDs.v2(timestamp, UUIDs.DCE_DOMAIN_GROUP, 501, 0x3F, 0)));
+        assertEquals(0x1234, UUIDs.getClockSequence(UUIDs.v6(timestamp, 0x1234, 0)));
+    }
+
+    @Test
+    void getNodeFromV1V2AndV6() {
+        long timestamp = 0x01B2_1DD2_1381_4000L;
+        long node = 0x1234_5678_9ABCL;
+        assertEquals(node, UUIDs.getNode(UUIDs.v1(timestamp, 0, node)));
+        assertEquals(node, UUIDs.getNode(UUIDs.v2(timestamp, UUIDs.DCE_DOMAIN_GROUP, 501, 0, node)));
+        assertEquals(node, UUIDs.getNode(UUIDs.v6(timestamp, 0, node)));
+    }
+
+    @Test
+    void getDceFieldsFromV2() {
+        UUID uuid = UUIDs.v2(0x01B2_1DD2_1381_4000L, UUIDs.DCE_DOMAIN_GROUP,
+                0x1_2345_6789L, 0, 0);
+        assertEquals(UUIDs.DCE_DOMAIN_GROUP, UUIDs.getDceLocalDomain(uuid));
+        assertEquals(0x2345_6789L, UUIDs.getDceLocalIdentifier(uuid));
+    }
+
+    @Test
+    void getV7Fields() {
+        UUID uuid = UUIDs.v7(1_718_000_000_000L, 0xABC, 0x0123_4567_89AB_CDEFL);
+        assertEquals(1_718_000_000_000L, UUIDs.getUnixTimestampMillis(uuid));
+        assertEquals(0xABC, UUIDs.getV7RandA(uuid));
+        assertEquals(0x0123_4567_89AB_CDEFL, UUIDs.getV7RandB(uuid));
+    }
+
+    @Test
+    void getV7FieldsReturnEncodedMasks() {
+        UUID uuid = UUIDs.v7(0L, -1, -1L);
+        assertEquals(0xFFF, UUIDs.getV7RandA(uuid));
+        assertEquals(0x3FFF_FFFF_FFFF_FFFFL, UUIDs.getV7RandB(uuid));
+    }
+
+    @Test
+    void fieldAccessorsRejectUnsupportedVersions() {
+        UUID v4 = UUIDs.generateV4();
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getGregorianTimestamp(v4));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getUnixTimestampMillis(v4));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getClockSequence(v4));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getNode(v4));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getDceLocalDomain(v4));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getDceLocalIdentifier(v4));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getV7RandA(v4));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.getV7RandB(v4));
     }
 
     // ---- newWithVersion ----
