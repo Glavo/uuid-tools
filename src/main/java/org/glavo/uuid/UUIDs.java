@@ -110,29 +110,49 @@ public final class UUIDs {
     public static UUID parse(String value) {
         int length = value.length(); // implicit null check
 
-        if (length == 36) {
-            if (hasStandardHyphenPositions(value, 0) && value.indexOf('+') < 0) {
-                return parseStandard(value, 0);
-            }
-            if (value.indexOf('-') >= 0) {
-                return parseLenientStandard(value);
-            }
-        }
-
         if (length == 38 && value.charAt(0) == '{' && value.charAt(37) == '}') {
             // Windows registry format: {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
             return parseStandard(value, 1);
         }
 
-        int firstHyphen = value.indexOf('-');
-        if (firstHyphen >= 0) {
-            if (length < 36) {
-                return parseLenientStandard(value);
+        if (length == 45 && value.regionMatches(true, 0, "urn:uuid:", 0, 9)) {
+            // URN format: urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+            return parseStandard(value, 9);
+        }
+
+        if (length <= 36) {
+            int dash1 = -1;
+            int dash2 = -1;
+            int dash3 = -1;
+            int dash4 = -1;
+            int dash5 = -1;
+            boolean hasPlus = false;
+            for (int i = 0; i < length; i++) {
+                char ch = value.charAt(i);
+                if (ch == '-') {
+                    if (dash1 < 0) {
+                        dash1 = i;
+                    } else if (dash2 < 0) {
+                        dash2 = i;
+                    } else if (dash3 < 0) {
+                        dash3 = i;
+                    } else if (dash4 < 0) {
+                        dash4 = i;
+                    } else {
+                        dash5 = i;
+                        break;
+                    }
+                } else if (ch == '+') {
+                    hasPlus = true;
+                }
             }
 
-            if (length == 45 && value.regionMatches(true, 0, "urn:uuid:", 0, 9)) {
-                // URN format: urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-                return parseStandard(value, 9);
+            if (dash1 >= 0) {
+                if (length == 36 && dash1 == 8 && dash2 == 13 && dash3 == 18 && dash4 == 23 && dash5 < 0
+                        && !hasPlus) {
+                    return parseStandardFields(value, 0);
+                }
+                return parseLenientStandard(value, dash1, dash2, dash3, dash4, dash5);
             }
         }
 
@@ -609,6 +629,12 @@ public final class UUIDs {
         if (!hasStandardHyphenPositions(value, offset)) {
             throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
+        return parseStandardFields(value, offset);
+    }
+
+    /// Parses the hexadecimal fields of a standard hyphenated UUID whose
+    /// hyphen positions have already been validated.
+    private static UUID parseStandardFields(String value, int offset) {
         long msb = parseHex(value, offset, offset + 8);
         msb = (msb << 16) | parseHex(value, offset + 9, offset + 13);
         msb = (msb << 16) | parseHex(value, offset + 14, offset + 18);
@@ -625,18 +651,13 @@ public final class UUIDs {
     }
 
     /// Parses a bare hyphenated UUID using the lenient rules of
-    /// [UUID#fromString(String)].
-    private static UUID parseLenientStandard(String value) {
+    /// [UUID#fromString(String)] and precomputed hyphen positions.
+    private static UUID parseLenientStandard(String value, int dash1, int dash2, int dash3, int dash4, int dash5) {
         int length = value.length();
         if (length > 36) {
             throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
 
-        int dash1 = value.indexOf('-');
-        int dash2 = dash1 < 0 ? -1 : value.indexOf('-', dash1 + 1);
-        int dash3 = dash2 < 0 ? -1 : value.indexOf('-', dash2 + 1);
-        int dash4 = dash3 < 0 ? -1 : value.indexOf('-', dash3 + 1);
-        int dash5 = dash4 < 0 ? -1 : value.indexOf('-', dash4 + 1);
         if (dash1 < 0 || dash4 < 0 || dash5 >= 0) {
             throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
