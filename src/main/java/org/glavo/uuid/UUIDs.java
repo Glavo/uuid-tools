@@ -26,15 +26,6 @@ import java.util.random.RandomGenerator;
 /// instances of various versions defined by
 /// [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562).
 ///
-/// Supported UUID versions:
-///
-/// - **Version 3** — name-based UUID using MD5 hashing (RFC 9562 § 5.3).
-/// - **Version 4** — random UUID (RFC 9562 § 5.4).
-/// - **Version 5** — name-based UUID using SHA-1 hashing (RFC 9562 § 5.5).
-/// - **Version 7** — time-ordered UUID combining a Unix epoch millisecond
-///   timestamp with random bits (RFC 9562 § 5.7).
-/// - **Version 8** — custom/experimental UUID (RFC 9562 § 5.8).
-///
 /// This class provides:
 ///
 /// - Well-known constants: [#NIL], [#MAX], and the four predefined namespace
@@ -47,6 +38,70 @@ import java.util.random.RandomGenerator;
 ///   [#comparator()].
 /// - The low-level helper [#newWithVersion(long, long, int)] for stamping
 ///   version and variant bits onto arbitrary 128-bit values.
+///
+/// <h2 id="uuid-versions">UUID versions</h2>
+///
+/// The following subsections describe the UUID versions understood by this
+/// class and define the shared behavior referenced by version-specific
+/// methods.
+///
+/// <h3 id="uuid-version-1">Version 1 UUIDs</h3>
+///
+/// Version 1 UUIDs are time-based UUIDs that store a 60-bit timestamp measured
+/// in 100-nanosecond intervals since the Gregorian epoch
+/// `1582-10-15T00:00:00Z`, plus clock sequence and node fields. This class
+/// does not generate version-1 UUIDs, but [#getInstant(UUID)] can extract their
+/// timestamp.
+///
+/// <h3 id="uuid-version-3">Version 3 UUIDs</h3>
+///
+/// Version 3 UUIDs are deterministic name-based UUIDs using MD5 hashing. The
+/// hash input is the optional namespace UUID encoded as 16 big-endian bytes,
+/// followed by the name bytes. [#generateV3(UUID, String)] and its overloads
+/// compute the MD5 digest; [#v3(byte[])] constructs the UUID from an existing
+/// 16-byte MD5 digest. The version and variant bits are stamped onto the
+/// resulting 128-bit value.
+///
+/// <h3 id="uuid-version-4">Version 4 UUIDs</h3>
+///
+/// Version 4 UUIDs are random UUIDs. [#generateV4()] uses the shared default
+/// [SecureRandom], [#generateV4(RandomGenerator)] uses the supplied random
+/// generator, and [#v4(long, long)] stamps the version and variant bits onto
+/// caller-provided raw random bits.
+///
+/// <h3 id="uuid-version-5">Version 5 UUIDs</h3>
+///
+/// Version 5 UUIDs are deterministic name-based UUIDs using SHA-1 hashing. The
+/// hash input is the optional namespace UUID encoded as 16 big-endian bytes,
+/// followed by the name bytes. [#generateV5(UUID, String)] and its overloads
+/// compute the SHA-1 digest; [#v5(byte[])] constructs the UUID from an existing
+/// 20-byte SHA-1 digest, using the first 16 digest bytes. The version and
+/// variant bits are stamped onto the resulting 128-bit value.
+///
+/// <h3 id="uuid-version-6">Version 6 UUIDs</h3>
+///
+/// Version 6 UUIDs are reordered time-based UUIDs that store the same
+/// Gregorian timestamp model as version 1 with the timestamp bits arranged for
+/// lexicographic ordering. This class does not generate version-6 UUIDs, but
+/// [#getInstant(UUID)] can extract their timestamp.
+///
+/// <h3 id="uuid-version-7">Version 7 UUIDs</h3>
+///
+/// Version 7 UUIDs are time-ordered UUIDs with a Unix epoch millisecond
+/// timestamp and random bits. The most significant 64 bits contain a 48-bit
+/// millisecond timestamp, the 4-bit version, and 12 random bits. The least
+/// significant 64 bits contain the RFC 9562 variant and 62 random bits.
+/// [#v7(long, long)] accepts the millisecond timestamp and caller-provided
+/// random bits directly; [#v7(Instant, long)] converts the instant to
+/// milliseconds first. [#generateV7()] and
+/// [#generateV7(InstantSource, RandomGenerator)] obtain the timestamp and
+/// random bits from the supplied sources.
+///
+/// <h3 id="uuid-version-8">Version 8 UUIDs</h3>
+///
+/// Version 8 UUIDs are custom UUIDs for application-defined layouts.
+/// [#v8(long, long)] stamps the version and variant bits onto caller-provided
+/// raw 128-bit data and preserves every other bit.
 ///
 /// All public methods are thread-safe.
 @NotNullByDefault
@@ -196,9 +251,9 @@ public final class UUIDs {
     ///
     /// Supported versions:
     ///
-    /// - **Version 1**: Gregorian 100-nanosecond timestamp (RFC 9562 § 5.1).
-    /// - **Version 6**: Reordered Gregorian timestamp (RFC 9562 § 5.6).
-    /// - **Version 7**: Unix epoch millisecond timestamp (RFC 9562 § 5.7).
+    /// - <a href="#uuid-version-1">Version 1 UUIDs</a>.
+    /// - <a href="#uuid-version-6">Version 6 UUIDs</a>.
+    /// - <a href="#uuid-version-7">Version 7 UUIDs</a>.
     ///
     /// @param uuid the UUID to extract the timestamp from
     /// @return the timestamp as an [Instant]
@@ -363,8 +418,8 @@ public final class UUIDs {
 
     /// Creates a version-3 UUID from a 16-byte MD5 digest.
     ///
-    /// The version and variant bits are stamped onto the first 16 bytes of the
-    /// digest as specified by RFC 9562 § 5.3.
+    /// See <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
+    /// version-3 construction rules.
     ///
     /// @param md5Digest the 16-byte MD5 digest
     /// @return a version-3 UUID
@@ -377,11 +432,11 @@ public final class UUIDs {
         return uuidFromHash(md5Digest, 3);
     }
 
-    /// Creates a version-3 (MD5) name-based UUID from a string name.
+    /// Generates a version-3 UUID from a string name.
     ///
-    /// The name is encoded as UTF-8 before hashing. If `namespace` is
-    /// non-null, its 16-byte big-endian representation is prepended to the
-    /// hash input as specified by RFC 9562 § 5.3.
+    /// The name is encoded as UTF-8 before hashing. See
+    /// <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
+    /// version-3 generation rules.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name to hash
@@ -391,10 +446,10 @@ public final class UUIDs {
         return generateV3(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
-    /// Creates a version-3 (MD5) name-based UUID from a byte-array name.
+    /// Generates a version-3 UUID from byte-array name data.
     ///
-    /// If `namespace` is non-null, its 16-byte big-endian representation is
-    /// prepended to the hash input.
+    /// See <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
+    /// version-3 generation rules.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name bytes to hash
@@ -404,11 +459,11 @@ public final class UUIDs {
         return nameBasedUUID(name, namespace, "MD5", 3);
     }
 
-    /// Creates a version-3 (MD5) name-based UUID from a [ByteBuffer] name.
+    /// Generates a version-3 UUID from [ByteBuffer] name data.
     ///
-    /// All remaining bytes in the buffer are consumed. If `namespace` is
-    /// non-null, its 16-byte big-endian representation is prepended to the
-    /// hash input.
+    /// All remaining bytes in the buffer are consumed. See
+    /// <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
+    /// version-3 generation rules.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the buffer whose remaining bytes are hashed
@@ -424,9 +479,9 @@ public final class UUIDs {
 
     /// Creates a version-4 UUID from the given raw 128-bit value.
     ///
-    /// The version and variant bits are stamped onto the provided values;
-    /// all other bits are preserved. Callers are expected to supply
-    /// cryptographically random input.
+    /// See <a href="#uuid-version-4">Version 4 UUIDs</a> for the shared
+    /// version-4 construction rules. Callers are expected to supply random
+    /// input.
     ///
     /// @param mostSigBits  the most significant 64 bits (before version stamping)
     /// @param leastSigBits the least significant 64 bits (before variant stamping)
@@ -438,12 +493,18 @@ public final class UUIDs {
 
     /// Generates a new version-4 UUID using the default [SecureRandom].
     ///
+    /// See <a href="#uuid-version-4">Version 4 UUIDs</a> for the shared
+    /// version-4 generation rules.
+    ///
     /// @return a freshly generated version-4 UUID
     public static UUID generateV4() {
         return generateV4(RandomGeneratorHolder.INSTANCE);
     }
 
     /// Generates a new version-4 UUID using the given random generator.
+    ///
+    /// See <a href="#uuid-version-4">Version 4 UUIDs</a> for the shared
+    /// version-4 generation rules.
     ///
     /// @param randomGenerator the source of randomness
     /// @return a freshly generated version-4 UUID
@@ -457,8 +518,8 @@ public final class UUIDs {
 
     /// Creates a version-5 UUID from a 20-byte SHA-1 digest.
     ///
-    /// The version and variant bits are stamped onto the first 16 bytes of the
-    /// digest as specified by RFC 9562 § 5.5.
+    /// See <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
+    /// version-5 construction rules.
     ///
     /// @param sha1Digest the 20-byte SHA-1 digest
     /// @return a version-5 UUID
@@ -471,11 +532,11 @@ public final class UUIDs {
         return uuidFromHash(sha1Digest, 5);
     }
 
-    /// Creates a version-5 (SHA-1) name-based UUID from a string name.
+    /// Generates a version-5 UUID from a string name.
     ///
-    /// The name is encoded as UTF-8 before hashing. If `namespace` is
-    /// non-null, its 16-byte big-endian representation is prepended to the
-    /// hash input as specified by RFC 9562 § 5.5.
+    /// The name is encoded as UTF-8 before hashing. See
+    /// <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
+    /// version-5 generation rules.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name to hash
@@ -485,10 +546,10 @@ public final class UUIDs {
         return generateV5(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
-    /// Creates a version-5 (SHA-1) name-based UUID from a byte-array name.
+    /// Generates a version-5 UUID from byte-array name data.
     ///
-    /// If `namespace` is non-null, its 16-byte big-endian representation is
-    /// prepended to the hash input.
+    /// See <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
+    /// version-5 generation rules.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name bytes to hash
@@ -498,11 +559,11 @@ public final class UUIDs {
         return nameBasedUUID(name, namespace, "SHA-1", 5);
     }
 
-    /// Creates a version-5 (SHA-1) name-based UUID from a [ByteBuffer] name.
+    /// Generates a version-5 UUID from [ByteBuffer] name data.
     ///
-    /// All remaining bytes in the buffer are consumed. If `namespace` is
-    /// non-null, its 16-byte big-endian representation is prepended to the
-    /// hash input.
+    /// All remaining bytes in the buffer are consumed. See
+    /// <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
+    /// version-5 generation rules.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the buffer whose remaining bytes are hashed
@@ -518,8 +579,10 @@ public final class UUIDs {
 
     /// Creates a version-7 UUID from an [Instant] timestamp and random bits.
     ///
-    /// The instant is converted to milliseconds since the Unix epoch via
-    /// [Instant#toEpochMilli()].
+    /// The instant is converted to milliseconds since the Unix epoch before
+    /// delegating to [#v7(long, long)]. See
+    /// <a href="#uuid-version-7">Version 7 UUIDs</a> for the shared version-7
+    /// construction rules.
     ///
     /// @param instant    the timestamp
     /// @param randomBits random bits filling the non-timestamp, non-version,
@@ -533,14 +596,8 @@ public final class UUIDs {
     /// Creates a version-7 UUID from a Unix epoch millisecond timestamp and
     /// random bits.
     ///
-    /// The layout follows RFC 9562 § 5.7:
-    ///
-    /// - Bits 0–47 of `mostSigBits`: the 48-bit Unix timestamp in
-    ///   milliseconds.
-    /// - Bits 48–51: version (`0111`).
-    /// - Bits 52–63: 12 random bits from `randomBits[0..11]`.
-    /// - Bits 64–65: variant (`10`).
-    /// - Bits 66–127: 62 random bits from `randomBits[12..73]`.
+    /// See <a href="#uuid-version-7">Version 7 UUIDs</a> for the shared
+    /// version-7 construction rules.
     ///
     /// @param epochMilli the Unix epoch millisecond timestamp
     /// @param randomBits random bits filling the non-timestamp positions
@@ -558,6 +615,9 @@ public final class UUIDs {
     /// Generates a new version-7 UUID using the system clock and the default
     /// [SecureRandom].
     ///
+    /// See <a href="#uuid-version-7">Version 7 UUIDs</a> for the shared
+    /// version-7 generation rules.
+    ///
     /// @return a freshly generated version-7 UUID
     public static UUID generateV7() {
         return generateV7(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
@@ -568,7 +628,8 @@ public final class UUIDs {
     ///
     /// Obtains the current millisecond timestamp from `instantSource` and
     /// random bits from `randomGenerator`, then delegates to
-    /// [#v7(long, long)].
+    /// [#v7(long, long)]. See <a href="#uuid-version-7">Version 7 UUIDs</a>
+    /// for the shared version-7 generation rules.
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
@@ -585,10 +646,8 @@ public final class UUIDs {
 
     /// Creates a version-8 (custom) UUID from the given raw 128-bit value.
     ///
-    /// Version 8 is reserved for experimental or vendor-specific UUIDs
-    /// (RFC 9562 § 5.8). The version and variant bits are stamped onto the
-    /// provided values; all other bits are preserved and their interpretation
-    /// is application-defined.
+    /// See <a href="#uuid-version-8">Version 8 UUIDs</a> for the shared
+    /// version-8 construction rules.
     ///
     /// @param mostSigBits  the most significant 64 bits (before version stamping)
     /// @param leastSigBits the least significant 64 bits (before variant stamping)
