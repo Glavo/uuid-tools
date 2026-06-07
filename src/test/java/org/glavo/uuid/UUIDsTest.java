@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.InstantSource;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -197,6 +199,33 @@ class UUIDsTest {
         assertEquals(UUIDs.compare(a, b), UUIDs.comparator().compare(a, b));
     }
 
+    // ---- Version 1 (time-based) ----
+
+    @Test
+    void v1FromGregorianTimestamp() {
+        UUID result = UUIDs.v1(0x01B2_1DD2_1381_4000L, 0x1234, 0x1234_5678_9ABCL);
+        assertEquals(1, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(UUID.fromString("13814000-1dd2-11b2-9234-123456789abc"), result);
+    }
+
+    @Test
+    void v1FromInstant() {
+        UUID result = UUIDs.v1(Instant.EPOCH, 0, 0);
+        assertEquals(UUID.fromString("13814000-1dd2-11b2-8000-000000000000"), result);
+        assertEquals(Instant.EPOCH, UUIDs.getInstant(result));
+    }
+
+    @Test
+    void generateV1ProducesValidUuid() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV1(InstantSource.fixed(instant), new Random(0));
+        assertEquals(1, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+        assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
+    }
+
     // ---- Version 3 (MD5) ----
 
     @Test
@@ -301,6 +330,40 @@ class UUIDsTest {
         UUID fromString = UUIDs.generateV5(NS_DNS, "www.example.com");
         UUID fromBytes = UUIDs.generateV5(NS_DNS, "www.example.com".getBytes(StandardCharsets.UTF_8));
         assertEquals(fromString, fromBytes);
+    }
+
+    // ---- Version 6 (reordered time-based) ----
+
+    @Test
+    void v6FromGregorianTimestamp() {
+        UUID result = UUIDs.v6(0x01B2_1DD2_1381_4000L, 0x1234, 0x1234_5678_9ABCL);
+        assertEquals(6, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(UUID.fromString("1b21dd21-3814-6000-9234-123456789abc"), result);
+    }
+
+    @Test
+    void v6FromInstant() {
+        UUID result = UUIDs.v6(Instant.EPOCH, 0, 0);
+        assertEquals(UUID.fromString("1b21dd21-3814-6000-8000-000000000000"), result);
+        assertEquals(Instant.EPOCH, UUIDs.getInstant(result));
+    }
+
+    @Test
+    void v6OrdersByTimestamp() {
+        UUID earlier = UUIDs.v6(0x01B2_1DD2_1381_4000L, 0, 0);
+        UUID later = UUIDs.v6(0x01B2_1DD2_1381_4001L, 0, 0);
+        assertTrue(UUIDs.compare(earlier, later) < 0);
+    }
+
+    @Test
+    void generateV6ProducesValidUuid() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV6(InstantSource.fixed(instant), new Random(0));
+        assertEquals(6, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+        assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
     }
 
     // ---- Version 7 (time-ordered) ----

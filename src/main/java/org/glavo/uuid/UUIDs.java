@@ -49,9 +49,11 @@ import java.util.random.RandomGenerator;
 ///
 /// Version 1 UUIDs are time-based UUIDs that store a 60-bit timestamp measured
 /// in 100-nanosecond intervals since the Gregorian epoch
-/// `1582-10-15T00:00:00Z`, plus clock sequence and node fields. This class
-/// does not generate version-1 UUIDs, but [#getInstant(UUID)] can extract their
-/// timestamp.
+/// `1582-10-15T00:00:00Z`, plus clock sequence and node fields.
+/// [#v1(long, int, long)] accepts those fields directly, [#v1(Instant, int, long)]
+/// converts the instant to the Gregorian timestamp first, and [#generateV1()]
+/// obtains the timestamp, clock sequence, and node from the default time and
+/// random sources.
 ///
 /// <h3 id="uuid-version-3">Version 3 UUIDs</h3>
 ///
@@ -82,8 +84,10 @@ import java.util.random.RandomGenerator;
 ///
 /// Version 6 UUIDs are reordered time-based UUIDs that store the same
 /// Gregorian timestamp model as version 1 with the timestamp bits arranged for
-/// lexicographic ordering. This class does not generate version-6 UUIDs, but
-/// [#getInstant(UUID)] can extract their timestamp.
+/// lexicographic ordering. [#v6(long, int, long)] accepts the reordered fields
+/// directly, [#v6(Instant, int, long)] converts the instant to the Gregorian
+/// timestamp first, and [#generateV6()] obtains the timestamp, clock sequence,
+/// and node from the default time and random sources.
 ///
 /// <h3 id="uuid-version-7">Version 7 UUIDs</h3>
 ///
@@ -413,6 +417,72 @@ public final class UUIDs {
     }
 
     // ========================================================================
+    // Version 1 — time-based
+    // ========================================================================
+
+    /// Creates a version-1 UUID from an [Instant], clock sequence, and node.
+    ///
+    /// The instant is converted to a Gregorian 100-nanosecond timestamp before
+    /// delegating to [#v1(long, int, long)]. See
+    /// <a href="#uuid-version-1">Version 1 UUIDs</a> for the shared version-1
+    /// construction rules.
+    ///
+    /// @param instant       the timestamp instant
+    /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are encoded
+    /// @param node          the 48-bit node value; only the low 48 bits are encoded
+    /// @return a version-1 UUID
+    @Contract(pure = true)
+    public static UUID v1(Instant instant, int clockSequence, long node) {
+        return v1(gregorianTimestamp(instant), clockSequence, node);
+    }
+
+    /// Creates a version-1 UUID from a Gregorian 100-nanosecond timestamp,
+    /// clock sequence, and node.
+    ///
+    /// See <a href="#uuid-version-1">Version 1 UUIDs</a> for the shared
+    /// version-1 construction rules.
+    ///
+    /// @param gregorianTimestamp the 60-bit timestamp; only the low 60 bits are encoded
+    /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are encoded
+    /// @param node               the 48-bit node value; only the low 48 bits are encoded
+    /// @return a version-1 UUID
+    @Contract(pure = true)
+    public static UUID v1(long gregorianTimestamp, int clockSequence, long node) {
+        long timestamp = gregorianTimestamp & GREGORIAN_TIMESTAMP_MASK;
+        long mostSigBits = ((timestamp & UINT_MASK) << 32)
+                | (((timestamp >>> 32) & 0xFFFFL) << 16)
+                | ((timestamp >>> 48) & 0x0FFFL);
+        long leastSigBits = (((long) clockSequence & CLOCK_SEQUENCE_MASK) << 48)
+                | (node & NODE_MASK);
+        return newWithVersion(mostSigBits, leastSigBits, 1);
+    }
+
+    /// Generates a new version-1 UUID using the system clock and the default
+    /// [SecureRandom].
+    ///
+    /// See <a href="#uuid-version-1">Version 1 UUIDs</a> for the shared
+    /// version-1 generation rules.
+    ///
+    /// @return a freshly generated version-1 UUID
+    public static UUID generateV1() {
+        return generateV1(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
+    }
+
+    /// Generates a new version-1 UUID using the given time source and random
+    /// generator.
+    ///
+    /// The random generator supplies the clock sequence and randomized node.
+    /// The generated node has the multicast bit set to identify it as a
+    /// non-IEEE random node value.
+    ///
+    /// @param instantSource   the source of the current time
+    /// @param randomGenerator the source of randomness
+    /// @return a freshly generated version-1 UUID
+    public static UUID generateV1(InstantSource instantSource, RandomGenerator randomGenerator) {
+        return v1(instantSource.instant(), randomClockSequence(randomGenerator), randomNode(randomGenerator));
+    }
+
+    // ========================================================================
     // Version 3 — MD5 name-based
     // ========================================================================
 
@@ -574,6 +644,70 @@ public final class UUIDs {
     }
 
     // ========================================================================
+    // Version 6 — reordered time-based
+    // ========================================================================
+
+    /// Creates a version-6 UUID from an [Instant], clock sequence, and node.
+    ///
+    /// The instant is converted to a Gregorian 100-nanosecond timestamp before
+    /// delegating to [#v6(long, int, long)]. See
+    /// <a href="#uuid-version-6">Version 6 UUIDs</a> for the shared version-6
+    /// construction rules.
+    ///
+    /// @param instant       the timestamp instant
+    /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are encoded
+    /// @param node          the 48-bit node value; only the low 48 bits are encoded
+    /// @return a version-6 UUID
+    @Contract(pure = true)
+    public static UUID v6(Instant instant, int clockSequence, long node) {
+        return v6(gregorianTimestamp(instant), clockSequence, node);
+    }
+
+    /// Creates a version-6 UUID from a Gregorian 100-nanosecond timestamp,
+    /// clock sequence, and node.
+    ///
+    /// See <a href="#uuid-version-6">Version 6 UUIDs</a> for the shared
+    /// version-6 construction rules.
+    ///
+    /// @param gregorianTimestamp the 60-bit timestamp; only the low 60 bits are encoded
+    /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are encoded
+    /// @param node               the 48-bit node value; only the low 48 bits are encoded
+    /// @return a version-6 UUID
+    @Contract(pure = true)
+    public static UUID v6(long gregorianTimestamp, int clockSequence, long node) {
+        long timestamp = gregorianTimestamp & GREGORIAN_TIMESTAMP_MASK;
+        long mostSigBits = ((timestamp >>> 12) << 16) | (timestamp & 0x0FFFL);
+        long leastSigBits = (((long) clockSequence & CLOCK_SEQUENCE_MASK) << 48)
+                | (node & NODE_MASK);
+        return newWithVersion(mostSigBits, leastSigBits, 6);
+    }
+
+    /// Generates a new version-6 UUID using the system clock and the default
+    /// [SecureRandom].
+    ///
+    /// See <a href="#uuid-version-6">Version 6 UUIDs</a> for the shared
+    /// version-6 generation rules.
+    ///
+    /// @return a freshly generated version-6 UUID
+    public static UUID generateV6() {
+        return generateV6(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
+    }
+
+    /// Generates a new version-6 UUID using the given time source and random
+    /// generator.
+    ///
+    /// The random generator supplies the clock sequence and randomized node.
+    /// The generated node has the multicast bit set to identify it as a
+    /// non-IEEE random node value.
+    ///
+    /// @param instantSource   the source of the current time
+    /// @param randomGenerator the source of randomness
+    /// @return a freshly generated version-6 UUID
+    public static UUID generateV6(InstantSource instantSource, RandomGenerator randomGenerator) {
+        return v6(instantSource.instant(), randomClockSequence(randomGenerator), randomNode(randomGenerator));
+    }
+
+    // ========================================================================
     // Version 7 — time-ordered
     // ========================================================================
 
@@ -690,6 +824,20 @@ public final class UUIDs {
     /// Gregorian epoch offset: the number of 100-nanosecond intervals between
     /// 1582-10-15T00:00:00Z and 1970-01-01T00:00:00Z.
     private static final long GREGORIAN_OFFSET = 0x01B2_1DD2_1381_4000L;
+
+    /// A mask for the 60-bit Gregorian timestamp field used by version 1 and
+    /// version 6 UUIDs.
+    private static final long GREGORIAN_TIMESTAMP_MASK = 0x0FFF_FFFF_FFFF_FFFFL;
+
+    /// A mask for the 14-bit clock sequence field used by version 1 and
+    /// version 6 UUIDs.
+    private static final int CLOCK_SEQUENCE_MASK = 0x3FFF;
+
+    /// A mask for the 48-bit node field used by version 1 and version 6 UUIDs.
+    private static final long NODE_MASK = 0xFFFF_FFFF_FFFFL;
+
+    /// The multicast bit in the first octet of a randomly generated node ID.
+    private static final long RANDOM_NODE_MULTICAST_MASK = 1L << 40;
 
     /// A mask for reading an `int`-sized limb as an unsigned 32-bit value.
     private static final long UINT_MASK = 0xFFFF_FFFFL;
@@ -874,6 +1022,13 @@ public final class UUIDs {
         return (timeHighMid << 12) | timeLow;
     }
 
+    /// Converts an [Instant] to a Gregorian 100-nanosecond timestamp.
+    private static long gregorianTimestamp(Instant instant) {
+        long seconds = Math.multiplyExact(instant.getEpochSecond(), 10_000_000L);
+        long nanos100 = instant.getNano() / 100L;
+        return Math.addExact(Math.addExact(seconds, nanos100), GREGORIAN_OFFSET);
+    }
+
     /// Converts a 60-bit Gregorian 100-nanosecond timestamp to an [Instant].
     private static Instant instantFromGregorianTimestamp(long timestamp) {
         // Convert from Gregorian epoch (1582-10-15) to Unix epoch (1970-01-01)
@@ -881,6 +1036,16 @@ public final class UUIDs {
         long seconds = Math.floorDiv(unixNanos100, 10_000_000L);
         long nanoAdjustment = Math.floorMod(unixNanos100, 10_000_000L) * 100L;
         return Instant.ofEpochSecond(seconds, nanoAdjustment);
+    }
+
+    /// Generates a random 14-bit clock sequence.
+    private static int randomClockSequence(RandomGenerator randomGenerator) {
+        return randomGenerator.nextInt() & CLOCK_SEQUENCE_MASK;
+    }
+
+    /// Generates a random 48-bit node ID with the multicast bit set.
+    private static long randomNode(RandomGenerator randomGenerator) {
+        return (randomGenerator.nextLong() & NODE_MASK) | RANDOM_NODE_MULTICAST_MASK;
     }
 
     /// Computes a name-based UUID (version 3 or 5) from a byte-array name.
