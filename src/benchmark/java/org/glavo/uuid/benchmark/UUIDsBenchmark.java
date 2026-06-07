@@ -54,6 +54,12 @@ public class UUIDsBenchmark {
         return UUIDs.generateV4();
     }
 
+    /// Measures uuid-tools version 7 generation with its default random source.
+    @Benchmark
+    public UUID uuidToolsGenerateV7() {
+        return UUIDs.generateV7();
+    }
+
     /// Measures uuid-tools standard UUID parsing.
     @Benchmark
     public UUID uuidToolsParseStandard() {
