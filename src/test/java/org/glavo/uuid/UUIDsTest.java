@@ -333,6 +333,27 @@ class UUIDsTest {
         assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
     }
 
+    @Test
+    void generateV1WithInstantSourceUsesDefaultRandomSource() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV1(InstantSource.fixed(instant));
+        assertEquals(1, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+    }
+
+    @Test
+    void generateV1WithRandomGeneratorUsesSystemTime() {
+        Random random = new Random(0);
+        long before = System.currentTimeMillis();
+        UUID result = UUIDs.generateV1(random);
+        long after = System.currentTimeMillis();
+        assertEquals(1, result.version());
+        assertEquals(2, result.variant());
+        assertTrue(before <= UUIDs.getUnixTimestampMillis(result));
+        assertTrue(UUIDs.getUnixTimestampMillis(result) <= after);
+    }
+
     // ---- Version 2 (DCE Security) ----
 
     @Test
@@ -365,6 +386,32 @@ class UUIDsTest {
         assertEquals(501L, result.getMostSignificantBits() >>> 32);
         assertEquals(UUIDs.DCE_DOMAIN_PERSON, (int) ((result.getLeastSignificantBits() >>> 48) & 0xFFL));
         assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
+    }
+
+    @Test
+    void generateV2WithInstantSourceUsesDefaultRandomSource() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501, InstantSource.fixed(instant));
+        assertEquals(2, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(501L, UUIDs.getDceLocalIdentifier(result));
+        assertEquals(UUIDs.DCE_DOMAIN_PERSON, UUIDs.getDceLocalDomain(result));
+        assertEquals(UUIDs.v2(instant, UUIDs.DCE_DOMAIN_PERSON, 501,
+                UUIDs.getClockSequence(result), UUIDs.getNode(result)), result);
+    }
+
+    @Test
+    void generateV2WithRandomGeneratorUsesSystemTime() {
+        Random random = new Random(0);
+        long before = System.currentTimeMillis();
+        UUID result = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501, random);
+        long after = System.currentTimeMillis();
+        assertEquals(2, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(501L, UUIDs.getDceLocalIdentifier(result));
+        assertEquals(UUIDs.DCE_DOMAIN_PERSON, UUIDs.getDceLocalDomain(result));
+        assertTrue(before - 500_000L <= UUIDs.getUnixTimestampMillis(result));
+        assertTrue(UUIDs.getUnixTimestampMillis(result) <= after);
     }
 
     // ---- Version 3 (MD5) ----
@@ -505,6 +552,27 @@ class UUIDsTest {
         assertEquals(2, result.variant());
         assertEquals(instant, UUIDs.getInstant(result));
         assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
+    }
+
+    @Test
+    void generateV6WithInstantSourceUsesDefaultRandomSource() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV6(InstantSource.fixed(instant));
+        assertEquals(6, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+    }
+
+    @Test
+    void generateV6WithRandomGeneratorUsesSystemTime() {
+        Random random = new Random(0);
+        long before = System.currentTimeMillis();
+        UUID result = UUIDs.generateV6(random);
+        long after = System.currentTimeMillis();
+        assertEquals(6, result.version());
+        assertEquals(2, result.variant());
+        assertTrue(before <= UUIDs.getUnixTimestampMillis(result));
+        assertTrue(UUIDs.getUnixTimestampMillis(result) <= after);
     }
 
     // ---- Version 1/6 conversion ----

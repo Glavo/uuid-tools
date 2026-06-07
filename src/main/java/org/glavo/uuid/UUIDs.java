@@ -687,6 +687,22 @@ public final class UUIDs {
         return generateV1(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
+    /// Generates a version-1 UUID from the system clock and the given random generator.
+    ///
+    /// @param randomGenerator the source of randomness
+    /// @return a version-1 UUID
+    public static UUID generateV1(RandomGenerator randomGenerator) {
+        return generateV1(InstantSource.system(), randomGenerator);
+    }
+
+    /// Generates a version-1 UUID from the given time source and default random source.
+    ///
+    /// @param instantSource the source of the current time
+    /// @return a version-1 UUID
+    public static UUID generateV1(InstantSource instantSource) {
+        return generateV1(instantSource, DefaultRandomGenerator.INSTANCE);
+    }
+
     /// Generates a version-1 UUID from the given time source and random generator.
     ///
     /// The clock sequence and node are drawn from `randomGenerator`. The node
@@ -752,6 +768,27 @@ public final class UUIDs {
     /// @return a freshly generated version-2 UUID
     public static UUID generateV2(int localDomain, long localIdentifier) {
         return generateV2(localDomain, localIdentifier, InstantSource.system(), DefaultRandomGenerator.INSTANCE);
+    }
+
+    /// Generates a version-2 UUID using the system clock and the given random generator.
+    ///
+    /// @param localDomain     the DCE local domain
+    /// @param localIdentifier the local identifier for that domain
+    /// @param randomGenerator the source of randomness
+    /// @return a freshly generated version-2 UUID
+    public static UUID generateV2(int localDomain, long localIdentifier, RandomGenerator randomGenerator) {
+        return generateV2(localDomain, localIdentifier, InstantSource.system(), randomGenerator);
+    }
+
+    /// Generates a version-2 UUID using the given time source and default
+    /// random source.
+    ///
+    /// @param localDomain     the DCE local domain
+    /// @param localIdentifier the local identifier for that domain
+    /// @param instantSource   the source of the current time
+    /// @return a freshly generated version-2 UUID
+    public static UUID generateV2(int localDomain, long localIdentifier, InstantSource instantSource) {
+        return generateV2(localDomain, localIdentifier, instantSource, DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-2 UUID using the given time source and random
@@ -932,6 +969,22 @@ public final class UUIDs {
     /// @return a version-6 UUID
     public static UUID generateV6() {
         return generateV6(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
+    }
+
+    /// Generates a version-6 UUID from the system clock and the given random generator.
+    ///
+    /// @param randomGenerator the source of randomness
+    /// @return a version-6 UUID
+    public static UUID generateV6(RandomGenerator randomGenerator) {
+        return generateV6(InstantSource.system(), randomGenerator);
+    }
+
+    /// Generates a version-6 UUID from the given time source and default random source.
+    ///
+    /// @param instantSource the source of the current time
+    /// @return a version-6 UUID
+    public static UUID generateV6(InstantSource instantSource) {
+        return generateV6(instantSource, DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-6 UUID from the given time source and random generator.

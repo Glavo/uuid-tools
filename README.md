@@ -49,12 +49,18 @@ UUID currentV6 = UUIDs.generateV6();
 UUID customSourceV1 = UUIDs.generateV1(InstantSource.system(), new Random());
 UUID customSourceV6 = UUIDs.generateV6(InstantSource.system(), new Random());
 
+// You can also provide only one of them
+UUID fixedTimeV1 = UUIDs.generateV1(InstantSource.fixed(Instant.now()));
+UUID customRandomV6 = UUIDs.generateV6(new Random());
+
 // Or deterministically from a specific Instant, clock sequence, and node
 UUID deterministicV1 = UUIDs.v1(Instant.now(), 0x1234, 0x0123_4567_89ABL);
 UUID deterministicV6 = UUIDs.v6(Instant.now(), 0x1234, 0x0123_4567_89ABL);
 
 // Version 2 embeds a local DCE domain and local identifier
 UUID v2 = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501);
+UUID fixedTimeV2 = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501, InstantSource.fixed(Instant.now()));
+UUID customRandomV2 = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501, new Random());
 ```
 
 However versions 1/2/6 each have their own drawbacks, so prefer version 7
