@@ -54,7 +54,7 @@ import java.util.random.RandomGenerator;
 /// followed by random bits. UUIDs generated in order are therefore roughly
 /// sorted by creation time. This is the preferred version for time-based UUIDs
 /// in new applications.
-/// See [#v7(long, long)], [#v7(Instant, long)], [#generateV7()], and
+/// See [#v7(long, int, long)], [#v7(Instant, int, long)], [#generateV7()], and
 /// [#generateV7(InstantSource, RandomGenerator)].
 ///
 /// <h3 id="uuid-version-4">Version 4 — random</h3>
@@ -703,28 +703,30 @@ public final class UUIDs {
     // Version 7 — time-ordered
     // ========================================================================
 
-    /// Creates a version-7 UUID from an [Instant] and random bits.
+    /// Creates a version-7 UUID from an [Instant], a 12-bit `rand_a` value,
+    /// and a 62-bit `rand_b` value.
     ///
-    /// @param instant    the timestamp
-    /// @param randomBits random bits for the non-timestamp, non-version, non-variant positions
+    /// @param instant the timestamp
+    /// @param randA   the `rand_a` value; only the low 12 bits are encoded
+    /// @param randB   the `rand_b` value; only the low 62 bits are encoded
     /// @return a version-7 UUID
     @Contract(pure = true)
-    public static UUID v7(Instant instant, long randomBits) {
-        return v7(instant.toEpochMilli(), randomBits);
+    public static UUID v7(Instant instant, int randA, long randB) {
+        return v7(instant.toEpochMilli(), randA, randB);
     }
 
-    /// Creates a version-7 UUID from a Unix epoch millisecond timestamp and random bits.
+    /// Creates a version-7 UUID from a Unix epoch millisecond timestamp,
+    /// a 12-bit `rand_a` value, and a 62-bit `rand_b` value.
     ///
     /// @param epochMilli the Unix epoch millisecond timestamp
-    /// @param randomBits random bits for the non-timestamp, non-version, non-variant positions
+    /// @param randA      the `rand_a` value; only the low 12 bits are encoded
+    /// @param randB      the `rand_b` value; only the low 62 bits are encoded
     /// @return a version-7 UUID
     @Contract(pure = true)
-    public static UUID v7(long epochMilli, long randomBits) {
-        // Most significant 64 bits: 48-bit timestamp | 12 random bits (version set by newWithVersion)
+    public static UUID v7(long epochMilli, int randA, long randB) {
         long mostSigBits = ((epochMilli & 0xFFFF_FFFF_FFFFL) << 16)
-                | ((randomBits >>> 52) & 0x0FFFL);
-        // Least significant 64 bits: remaining random bits (variant set by newWithVersion)
-        long leastSigBits = randomBits << 12 >>> 2;
+                | ((long) randA & V7_RANDOM_A_MASK);
+        long leastSigBits = randB & V7_RANDOM_B_MASK;
         return newWithVersion(mostSigBits, leastSigBits, 7);
     }
 
@@ -742,8 +744,9 @@ public final class UUIDs {
     /// @return a version-7 UUID
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
         long milli = instantSource.millis();
-        long randomBits = randomGenerator.nextLong();
-        return v7(milli, randomBits);
+        int randA = randomGenerator.nextInt() & V7_RANDOM_A_MASK;
+        long randB = randomGenerator.nextLong() & V7_RANDOM_B_MASK;
+        return v7(milli, randA, randB);
     }
 
     // ========================================================================
@@ -807,6 +810,12 @@ public final class UUIDs {
 
     /// A mask for the 48-bit node field used by version 1, 2, and 6 UUIDs.
     private static final long NODE_MASK = 0xFFFF_FFFF_FFFFL;
+
+    /// A mask for the 12-bit `rand_a` field used by version 7 UUIDs.
+    private static final int V7_RANDOM_A_MASK = 0x0FFF;
+
+    /// A mask for the 62-bit `rand_b` field used by version 7 UUIDs.
+    private static final long V7_RANDOM_B_MASK = 0x3FFF_FFFF_FFFF_FFFFL;
 
     /// The multicast bit in the first octet of a randomly generated node ID.
     private static final long RANDOM_NODE_MULTICAST_MASK = 1L << 40;

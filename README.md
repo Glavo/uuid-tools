@@ -33,8 +33,8 @@ UUID _ = UUIDs.generateV7();
 // Or with a specific InstantSource and RandomGenerator
 UUID _ = UUIDs.generateV7(Clock.systemUTC(), new Random());
 
-// Or deterministically from a specific Instant and random bits
-UUID _ = UUIDs.v7(Instant.now(), 114514L);
+// Or deterministically from a specific Instant, rand_a, and rand_b
+UUID _ = UUIDs.v7(Instant.now(), 0x123, 114514L);
 ```
 
 UUID v1/v2/v6 are also time-based and can be constructed similarly.
@@ -121,8 +121,8 @@ as expected.
 
 ```java
 Instant now = Instant.now();
-UUID uuid1 = UUIDs.v7(now, 0L);
-UUID uuid2 = UUIDs.v7(now.plusSeconds(1L), 0L);
+UUID uuid1 = UUIDs.v7(now, 0, 0L);
+UUID uuid2 = UUIDs.v7(now.plusSeconds(1L), 0, 0L);
 
 // Compare two UUIDs
 assert UUIDs.compare(uuid1, uuid2) < 0;

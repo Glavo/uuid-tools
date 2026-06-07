@@ -411,15 +411,27 @@ class UUIDsTest {
 
     @Test
     void v7HasCorrectVersionAndVariant() {
-        UUID result = UUIDs.v7(1_000_000_000L, 0xABCD_EF01_2345_6789L);
+        UUID result = UUIDs.v7(1_000_000_000L, 0xABC, 0x0123_4567_89AB_CDEFL);
         assertEquals(7, result.version());
         assertEquals(2, result.variant());
     }
 
     @Test
+    void v7EncodesRandomFields() {
+        UUID result = UUIDs.v7(1_000_000_000L, 0xABC, 0x0123_4567_89AB_CDEFL);
+        assertEquals(UUID.fromString("00003b9a-ca00-7abc-8123-456789abcdef"), result);
+    }
+
+    @Test
+    void v7MasksRandomFields() {
+        UUID result = UUIDs.v7(0L, -1, -1L);
+        assertEquals(UUID.fromString("00000000-0000-7fff-bfff-ffffffffffff"), result);
+    }
+
+    @Test
     void v7PreservesTimestamp() {
         long epochMilli = 1_718_000_000_000L;
-        UUID result = UUIDs.v7(epochMilli, 0L);
+        UUID result = UUIDs.v7(epochMilli, 0, 0L);
         long extractedMilli = result.getMostSignificantBits() >>> 16;
         assertEquals(epochMilli, extractedMilli);
     }
@@ -427,8 +439,8 @@ class UUIDsTest {
     @Test
     void v7FromInstant() {
         Instant instant = Instant.ofEpochMilli(1_718_000_000_000L);
-        UUID fromInstant = UUIDs.v7(instant, 0L);
-        UUID fromMilli = UUIDs.v7(1_718_000_000_000L, 0L);
+        UUID fromInstant = UUIDs.v7(instant, 0, 0L);
+        UUID fromMilli = UUIDs.v7(1_718_000_000_000L, 0, 0L);
         assertEquals(fromMilli, fromInstant);
     }
 
@@ -453,7 +465,7 @@ class UUIDsTest {
     @Test
     void getInstantFromV7() {
         long epochMilli = 1_718_000_000_000L;
-        UUID uuid = UUIDs.v7(epochMilli, 0L);
+        UUID uuid = UUIDs.v7(epochMilli, 0, 0L);
         Instant instant = UUIDs.getInstant(uuid);
         assertEquals(Instant.ofEpochMilli(epochMilli), instant);
     }
