@@ -144,24 +144,31 @@ public final class UUIDs {
     // Parsing
     // ========================================================================
 
-    /// Parses a UUID from a string. Supports formats:
+    /// Parses a UUID from a string. Supports unambiguous UUID text formats:
     ///
     /// | Format                  | Example                                        |
     /// |-------------------------|------------------------------------------------|
     /// | Standard                | `550e8400-e29b-41d4-a716-446655440000`          |
-    /// | Loose                   | `1-1-1-1-1`                                    |
     /// | Compact                 | `550e8400e29b41d4a716446655440000`              |
     /// | Windows registry        | `{550e8400-e29b-41d4-a716-446655440000}`        |
     /// | URN                     | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
-    /// | Base62                  | `6aGFHbkMKi3UrLaRLGaKzG`                       |
     ///
     /// @param value the string to parse
     /// @return the parsed UUID
     /// @throws IllegalArgumentException if the string is not a valid UUID in any recognized format
-    ///                                  or if a Base62 value is outside the UUID range
     @Contract(pure = true)
     public static UUID parse(String value) {
         int length = value.length(); // implicit null check
+
+        if (length == 36) {
+            return parseStandard(value, 0);
+        }
+
+        if (length == 32) {
+            long msb = parseHex(value, 0, 16);
+            long lsb = parseHex(value, 16, 32);
+            return new UUID(msb, lsb);
+        }
 
         if (length == 38 && value.charAt(0) == '{' && value.charAt(37) == '}') {
             // Windows registry format: {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
@@ -173,72 +180,55 @@ public final class UUIDs {
             return parseStandard(value, 9);
         }
 
-        if (length <= 36) {
-            int dash1 = -1;
-            int dash2 = -1;
-            int dash3 = -1;
-            int dash4 = -1;
-            int dashCount = 0;
-            boolean allHexDigits = true;
-            boolean allJavaHexChars = true;
-            boolean allBase62Digits = true;
-            for (int i = 0; i < length; i++) {
-                char ch = value.charAt(i);
-                if (ch == '-') {
-                    dashCount++;
-                    allBase62Digits = false;
-                    if (dashCount == 1) {
-                        dash1 = i;
-                    } else if (dashCount == 2) {
-                        dash2 = i;
-                    } else if (dashCount == 3) {
-                        dash3 = i;
-                    } else if (dashCount == 4) {
-                        dash4 = i;
-                    }
-                } else if (ch == '+') {
-                    allHexDigits = false;
-                    allBase62Digits = false;
-                } else {
-                    int hexDigit = hexDigit(ch);
-                    if (hexDigit < 0) {
-                        allHexDigits = false;
-                        allJavaHexChars = false;
-                    }
-                    if (base62Digit(ch) < 0) {
-                        allBase62Digits = false;
-                    }
-                }
-            }
+        throw new IllegalArgumentException("Invalid UUID string: " + value);
+    }
 
-            if (dashCount > 0) {
-                if (length == 36 && dash1 == 8 && dash2 == 13 && dash3 == 18 && dash4 == 23
-                        && dashCount == 4 && allHexDigits) {
-                    long msb = parseHexUnchecked(value, 0, 8);
-                    msb = (msb << 16) | parseHexUnchecked(value, 9, 13);
-                    msb = (msb << 16) | parseHexUnchecked(value, 14, 18);
-                    long lsb = parseHexUnchecked(value, 19, 23);
-                    lsb = (lsb << 48) | parseHexUnchecked(value, 24, 36);
-                    return new UUID(msb, lsb);
-                }
-                if (!allJavaHexChars) {
-                    throw new IllegalArgumentException("Invalid UUID string: " + value);
-                }
-                return parseLenientStandard(value, dash1, dash2, dash3, dash4, dashCount);
-            }
-
-            if (length == 32 && allHexDigits) {
-                long msb = parseHexUnchecked(value, 0, 16);
-                long lsb = parseHexUnchecked(value, 16, 32);
-                return new UUID(msb, lsb);
-            }
-
-            if (length == 22 && allBase62Digits) {
-                return parseBase62(value);
-            }
+    /// Parses a 22-character Base62 UUID string.
+    ///
+    /// The 128-bit value is treated as unsigned. The digit set is `0-9A-Za-z`.
+    ///
+    /// @param value the Base62 UUID string
+    /// @return the parsed UUID
+    /// @throws IllegalArgumentException if `value` is not a valid 22-character Base62 UUID string
+    @Contract(pure = true)
+    public static UUID parseBase62(String value) {
+        if (value.length() != 22) {
+            throw new IllegalArgumentException("Invalid Base62 UUID string: " + value);
         }
 
-        throw new IllegalArgumentException("Invalid UUID string: " + value);
+        long word0 = 0L;
+        long word1 = 0L;
+        long word2 = 0L;
+        long word3 = 0L;
+        for (int i = 0; i < 22; i++) {
+            int digit = base62Digit(value.charAt(i));
+            if (digit < 0) {
+                throw new IllegalArgumentException("Invalid Base62 UUID string: " + value);
+            }
+
+            // Multiply the unsigned 128-bit accumulator by 62 and add the digit.
+            long product = word3 * 62L + digit;
+            word3 = product & UINT_MASK;
+            long carry = product >>> 32;
+
+            product = word2 * 62L + carry;
+            word2 = product & UINT_MASK;
+            carry = product >>> 32;
+
+            product = word1 * 62L + carry;
+            word1 = product & UINT_MASK;
+            carry = product >>> 32;
+
+            product = word0 * 62L + carry;
+            word0 = product & UINT_MASK;
+            carry = product >>> 32;
+            if (carry != 0L) {
+                throw new IllegalArgumentException("Invalid Base62 UUID string: " + value);
+            }
+        }
+        long mostSigBits = (word0 << 32) | word1;
+        long leastSigBits = (word2 << 32) | word3;
+        return new UUID(mostSigBits, leastSigBits);
     }
 
     // ========================================================================
@@ -929,60 +919,6 @@ public final class UUIDs {
                 && value.charAt(offset + 18) == '-' && value.charAt(offset + 23) == '-';
     }
 
-    /// Parses a hyphenated UUID using [UUID#fromString(String)]-compatible
-    /// lenient parsing with precomputed hyphen positions.
-    private static UUID parseLenientStandard(String value, int dash1, int dash2, int dash3, int dash4, int dashCount) {
-        int length = value.length();
-        if (length > 36) {
-            throw new IllegalArgumentException("Invalid UUID string: " + value);
-        }
-
-        if (dashCount != 4) {
-            throw new IllegalArgumentException("Invalid UUID string: " + value);
-        }
-
-        long msb = Long.parseLong(value, 0, dash1, 16) & UINT_MASK;
-        msb = (msb << 16) | (Long.parseLong(value, dash1 + 1, dash2, 16) & 0xFFFFL);
-        msb = (msb << 16) | (Long.parseLong(value, dash2 + 1, dash3, 16) & 0xFFFFL);
-        long lsb = Long.parseLong(value, dash3 + 1, dash4, 16) & 0xFFFFL;
-        lsb = (lsb << 48) | (Long.parseLong(value, dash4 + 1, length, 16) & 0xFFFF_FFFF_FFFFL);
-        return new UUID(msb, lsb);
-    }
-
-    /// Parses a prevalidated 22-character Base62 string into a UUID.
-    private static UUID parseBase62(String value) {
-        long word0 = 0L;
-        long word1 = 0L;
-        long word2 = 0L;
-        long word3 = 0L;
-        for (int i = 0; i < 22; i++) {
-            int digit = base62Digit(value.charAt(i));
-
-            // Multiply the unsigned 128-bit accumulator by 62 and add the digit.
-            long product = word3 * 62L + digit;
-            word3 = product & UINT_MASK;
-            long carry = product >>> 32;
-
-            product = word2 * 62L + carry;
-            word2 = product & UINT_MASK;
-            carry = product >>> 32;
-
-            product = word1 * 62L + carry;
-            word1 = product & UINT_MASK;
-            carry = product >>> 32;
-
-            product = word0 * 62L + carry;
-            word0 = product & UINT_MASK;
-            carry = product >>> 32;
-            if (carry != 0L) {
-                throw new IllegalArgumentException("Invalid UUID string: " + value);
-            }
-        }
-        long mostSigBits = (word0 << 32) | word1;
-        long leastSigBits = (word2 << 32) | word3;
-        return new UUID(mostSigBits, leastSigBits);
-    }
-
     /// Returns the Base62 digit value for a character, or -1 if invalid.
     private static int base62Digit(char c) {
         if (c >= '0' && c <= '9') return c - '0';
@@ -1009,15 +945,6 @@ public final class UUIDs {
                 throw new IllegalArgumentException("Invalid UUID string: " + value);
             }
             result = (result << 4) | digit;
-        }
-        return result;
-    }
-
-    /// Parses a prevalidated ASCII hex substring as an unsigned long value.
-    private static long parseHexUnchecked(String value, int start, int end) {
-        long result = 0;
-        for (int i = start; i < end; i++) {
-            result = (result << 4) | hexDigit(value.charAt(i));
         }
         return result;
     }

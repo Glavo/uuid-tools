@@ -138,18 +138,19 @@ TreeSet<UUID> _ = new TreeSet<>(UUIDs.comparator());
 `UUID.fromString(String)` parses it back.
 
 In practice, UUIDs appear in many different string formats. uuid-tools provides
-convenient methods for converting UUIDs to these formats and a unified
-`UUIDs.parse(String)` for parsing them all.
+convenient methods for converting UUIDs to these formats. `UUIDs.parse(String)`
+handles unambiguous UUID text forms, while compact encodings such as Base62 use
+explicit parsers.
 
 Supported formats:
 
-| Format           | To String Method              | Example                                         |
-|------------------|-------------------------------|-------------------------------------------------|
-| Standard         | `UUID.toString()`             | `550e8400-e29b-41d4-a716-446655440000`          |
-| Compact          | `UUIDs.toCompactString(UUID)` | `550e8400e29b41d4a716446655440000`              |
-| Windows registry | /                             | `{550e8400-e29b-41d4-a716-446655440000}`        |
-| URN              | `UUIDs.toURNString(UUID)`     | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
-| Base62           | `UUIDs.toBase62String(UUID)`  | `6aGFHbkMKi3UrLaRLGaKzG`                        |
+| Format           | To String Method              | Parse Method               | Example                                         |
+|------------------|-------------------------------|----------------------------|-------------------------------------------------|
+| Standard         | `UUID.toString()`             | `UUIDs.parse(String)`      | `550e8400-e29b-41d4-a716-446655440000`          |
+| Compact          | `UUIDs.toCompactString(UUID)` | `UUIDs.parse(String)`      | `550e8400e29b41d4a716446655440000`              |
+| Windows registry | /                             | `UUIDs.parse(String)`      | `{550e8400-e29b-41d4-a716-446655440000}`        |
+| URN              | `UUIDs.toURNString(UUID)`     | `UUIDs.parse(String)`      | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
+| Base62           | `UUIDs.toBase62String(UUID)`  | `UUIDs.parseBase62(String)` | `6aGFHbkMKi3UrLaRLGaKzG`                        |
 
 ## Requirements
 

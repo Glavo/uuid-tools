@@ -95,33 +95,12 @@ class UUIDsTest {
     }
 
     @Test
-    void parseJavaStyleShortHyphenatedFormat() {
-        assertEquals(UUID.fromString("00000001-0001-0001-0001-000000000001"),
-                UUIDs.parse("1-1-1-1-1"));
-    }
-
-    @Test
-    void parseJavaStyleHyphenatedFormatUsesLowBits() {
-        assertEquals(UUID.fromString("56789012-2345-2345-2345-000000000001"),
-                UUIDs.parse("123456789012-12345-12345-12345-1"));
-    }
-
-    @Test
-    void parseJavaStyleHyphenatedFormatWithNonCanonicalDashPositions() {
-        assertEquals(UUID.fromString("23456789-1234-1234-1234-012345678901"),
-                UUIDs.parse("123456789-1234-1234-1234-12345678901"));
-    }
-
-    @Test
-    void parseJavaStyleHyphenatedFormatWithPlusSign() {
-        assertEquals(UUID.fromString("00000001-0001-0001-0001-000000000001"),
-                UUIDs.parse("+1-+1-+1-+1-+1"));
-    }
-
-    @Test
-    void parseJavaStyleCanonicalLengthHyphenatedFormatWithPlusSign() {
-        assertEquals(UUID.fromString("02345678-1234-1234-1234-123456789012"),
-                UUIDs.parse("+2345678-1234-1234-1234-123456789012"));
+    void parseRejectsJavaStyleLenientFormats() {
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("1-1-1-1-1"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("123456789012-12345-12345-12345-1"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("123456789-1234-1234-1234-12345678901"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("+1-+1-+1-+1-+1"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("+2345678-1234-1234-1234-123456789012"));
     }
 
     @Test
@@ -157,19 +136,26 @@ class UUIDsTest {
         UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         String base62 = UUIDs.toBase62String(uuid);
         assertEquals(22, base62.length());
-        assertEquals(uuid, UUIDs.parse(base62));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse(base62));
+        assertEquals(uuid, UUIDs.parseBase62(base62));
     }
 
     @Test
     void parseBase62Max() {
         String base62Max = UUIDs.toBase62String(UUIDs.MAX);
         assertEquals("7n42DGM5Tflk9n8mt7Fhc7", base62Max);
-        assertEquals(UUIDs.MAX, UUIDs.parse(base62Max));
+        assertEquals(UUIDs.MAX, UUIDs.parseBase62(base62Max));
     }
 
     @Test
     void parseBase62RejectsOverflow() {
-        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("zzzzzzzzzzzzzzzzzzzzzz"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parseBase62("zzzzzzzzzzzzzzzzzzzzzz"));
+    }
+
+    @Test
+    void parseBase62RejectsInvalidInput() {
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parseBase62("6aGFHbkMKi3UrLaRLGaKz"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parseBase62("6aGFHbkMKi3UrLaRLGaKz-"));
     }
 
     @Test
