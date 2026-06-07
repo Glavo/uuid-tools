@@ -199,7 +199,7 @@ public final class UUIDs {
         long word1 = mostSigBits & UINT_MASK;
         long word2 = leastSigBits >>> 32;
         long word3 = leastSigBits & UINT_MASK;
-        char[] buf = new char[22];
+        byte[] buf = new byte[22];
         // Divide the unsigned 128-bit value by 62 through four 32-bit limbs.
         for (int i = 21; i >= 0; i--) {
             long remainder = 0L;
@@ -546,8 +546,8 @@ public final class UUIDs {
     private static final HexFormat HEX_FORMAT = HexFormat.of();
 
     /// The Base62 character set: `0-9A-Za-z`.
-    private static final char[] BASE62_CHARS =
-            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
+    private static final byte[] BASE62_CHARS =
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
 
     /// Holder for the default [SecureRandom] instance, initialized lazily.
     private static final class RandomGeneratorHolder {
