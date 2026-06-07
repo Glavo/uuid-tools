@@ -724,9 +724,11 @@ public final class UUIDs {
     /// @return a version-7 UUID
     @Contract(pure = true)
     public static UUID v7(long epochMilli, int randA, long randB) {
+        final int randomAMask = 0x0FFF;
+        final long randomBMask = 0x3FFF_FFFF_FFFF_FFFFL;
         long mostSigBits = ((epochMilli & 0xFFFF_FFFF_FFFFL) << 16)
-                | ((long) randA & V7_RANDOM_A_MASK);
-        long leastSigBits = randB & V7_RANDOM_B_MASK;
+                | ((long) randA & randomAMask);
+        long leastSigBits = randB & randomBMask;
         return newWithVersion(mostSigBits, leastSigBits, 7);
     }
 
@@ -743,13 +745,16 @@ public final class UUIDs {
     /// @param randomGenerator the source of randomness
     /// @return a version-7 UUID
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
+        final int nanosPerMilli = 1_000_000;
+        final int subMilliFractionBits = 10;
+        final int randomABits = 2;
         Instant instant = instantSource.instant();
-        int nanoOfMilli = instant.getNano() % NANOS_PER_MILLI;
-        int subMillisecondFraction = (int) (((long) nanoOfMilli << V7_SUB_MILLI_FRACTION_BITS)
-                / NANOS_PER_MILLI);
+        int nanoOfMilli = instant.getNano() % nanosPerMilli;
+        int subMillisecondFraction = (int) (((long) nanoOfMilli << subMilliFractionBits)
+                / nanosPerMilli);
         long randomBits = randomGenerator.nextLong();
-        int randA = (subMillisecondFraction << V7_RANDOM_A_RANDOM_BITS)
-                | (int) (randomBits >>> (Long.SIZE - V7_RANDOM_A_RANDOM_BITS));
+        int randA = (subMillisecondFraction << randomABits)
+                | (int) (randomBits >>> (Long.SIZE - randomABits));
         return v7(instant.toEpochMilli(), randA, randomBits);
     }
 
@@ -815,23 +820,8 @@ public final class UUIDs {
     /// A mask for the 48-bit node field used by version 1, 2, and 6 UUIDs.
     private static final long NODE_MASK = 0xFFFF_FFFF_FFFFL;
 
-    /// A mask for the 12-bit `rand_a` field used by version 7 UUIDs.
-    private static final int V7_RANDOM_A_MASK = 0x0FFF;
-
-    /// A mask for the 62-bit `rand_b` field used by version 7 UUIDs.
-    private static final long V7_RANDOM_B_MASK = 0x3FFF_FFFF_FFFF_FFFFL;
-
-    /// The number of `rand_a` bits used for the sub-millisecond fraction.
-    private static final int V7_SUB_MILLI_FRACTION_BITS = 10;
-
-    /// The number of `rand_a` bits filled from the random source.
-    private static final int V7_RANDOM_A_RANDOM_BITS = 2;
-
     /// The multicast bit in the first octet of a randomly generated node ID.
     private static final long RANDOM_NODE_MULTICAST_MASK = 1L << 40;
-
-    /// The number of nanoseconds in one millisecond.
-    private static final int NANOS_PER_MILLI = 1_000_000;
 
     /// A mask for reading an `int`-sized limb as an unsigned 32-bit value.
     private static final long UINT_MASK = 0xFFFF_FFFFL;
