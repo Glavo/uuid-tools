@@ -44,6 +44,10 @@ import java.util.random.RandomGenerator;
 /// The following subsections describe the UUID versions understood by this
 /// class and define the shared behavior referenced by version-specific
 /// methods.
+/// For new time-ordered UUID generation, prefer <a href="#uuid-version-7">
+/// Version 7 UUIDs</a>. Version 1 and version 6 UUIDs are primarily useful
+/// when existing systems require Gregorian timestamps, clock sequences, or
+/// node fields.
 ///
 /// <h3 id="uuid-version-1">Version 1 UUIDs</h3>
 ///
