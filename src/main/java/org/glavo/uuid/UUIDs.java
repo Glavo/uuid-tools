@@ -22,95 +22,64 @@ import java.util.HexFormat;
 import java.util.UUID;
 import java.util.random.RandomGenerator;
 
-/// Utility class for creating, parsing, formatting, and comparing [UUID]
-/// instances of various versions defined by
+/// Utility methods for [UUID] — create, parse, format, compare. Implements
 /// [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562).
 ///
-/// This class provides:
-///
-/// - Well-known constants: [#NIL], [#MAX], and the four predefined namespace
-///   UUIDs ([#NAMESPACE_DNS], [#NAMESPACE_URL], [#NAMESPACE_OID],
-///   [#NAMESPACE_X500]).
-/// - Parsing from multiple string formats via [#parse(String)].
-/// - Formatting to compact, URN, OID, and Base62 string representations.
-/// - Timestamp extraction from time-based UUIDs via [#getInstant(UUID)].
-/// - Unsigned lexicographic comparison via [#compare(UUID, UUID)] and
-///   [#comparator()].
-/// - The low-level helper [#newWithVersion(long, long, int)] for stamping
-///   version and variant bits onto arbitrary 128-bit values.
+/// Provides constants ([#NIL], [#MAX], four namespace UUIDs), multi-format
+/// parsing, compact/URN/OID/Base62 formatting, unsigned comparison, timestamp
+/// extraction, and the low-level helper [#newWithVersion(long, long, int)].
 ///
 /// <h2 id="uuid-versions">UUID versions</h2>
 ///
-/// This class supports several UUID versions. Choose the version from the
-/// shape of the identifier you need, not from the version number.
+/// Each version serves a different use case. Pick the shape, not the number.
 ///
-/// <h3 id="uuid-version-7">Time-ordered UUIDs: version 7 first</h3>
+/// <h3 id="uuid-version-7">Version 7 — time-ordered (preferred)</h3>
 ///
-/// For new identifiers that should roughly sort by creation time, use
-/// [#generateV7()]. Version 7 stores a Unix epoch millisecond timestamp followed
-/// by random bits, so it works well for databases, logs, and distributed
-/// application IDs without exposing node information.
+/// Embeds a Unix millisecond timestamp with random bits. Sorts roughly by
+/// creation time, no node exposure. Good for databases, logs, distributed IDs.
+/// [#v7(long, long)] takes millis + random bits; [#v7(Instant, long)] converts
+/// instant to millis; [#generateV7()] and
+/// [#generateV7(InstantSource, RandomGenerator)] pull from the given sources.
 ///
-/// [#v7(long, long)] accepts the millisecond timestamp and caller-provided
-/// random bits directly; [#v7(Instant, long)] converts the instant to
-/// milliseconds first. [#generateV7()] and
-/// [#generateV7(InstantSource, RandomGenerator)] obtain the timestamp and
-/// random bits from the supplied sources.
+/// <h3 id="uuid-version-1">Version 1 — legacy time-based</h3>
 ///
-/// <h3 id="uuid-version-1">Legacy time UUIDs: version 1</h3>
+/// For compatibility with systems that need the legacy timestamp layout, clock
+/// sequence, and node. Uses a 60-bit 100-nanosecond timestamp since the
+/// Gregorian epoch `1582-10-15T00:00:00Z`, plus clock sequence and node.
+/// [#v1(long, int, long)] / [#v1(Instant, int, long)] accept these fields;
+/// [#generateV1()] sources them from system time and random.
 ///
-/// Use version 1 only when interoperating with systems that require the legacy
-/// UUID timestamp layout, clock sequence, or node field. Version 1 stores a
-/// 60-bit timestamp measured in 100-nanosecond intervals since the Gregorian
-/// epoch `1582-10-15T00:00:00Z`, plus clock sequence and node fields.
-/// [#v1(long, int, long)] accepts those fields directly, [#v1(Instant, int, long)]
-/// converts the instant to the Gregorian timestamp first, and [#generateV1()]
-/// obtains the timestamp, clock sequence, and node from the default time and
-/// random sources.
+/// <h3 id="uuid-version-6">Version 6 — reordered time-based</h3>
 ///
-/// <h3 id="uuid-version-6">Legacy-compatible ordered UUIDs: version 6</h3>
+/// Like version 1 but with timestamp fields reordered for better lexicographic
+/// ordering. Same clock sequence and node model. Prefer version 7 for new code.
+/// [#v6(long, int, long)] / [#v6(Instant, int, long)] / [#generateV6()].
 ///
-/// Use version 6 when a system needs version-1 field semantics but also needs
-/// better lexicographic ordering. Version 6 reorders the version-1 Gregorian
-/// timestamp fields for locality while keeping the same clock sequence and node
-/// model. New systems that only need time ordering should use
-/// [#generateV7()]. [#v6(long, int, long)] accepts the reordered fields
-/// directly, [#v6(Instant, int, long)] converts the instant to the Gregorian
-/// timestamp first, and [#generateV6()] obtains the timestamp, clock sequence,
-/// and node from the default time and random sources.
+/// <h3 id="uuid-version-5">Version 5 — SHA-1 name-based (preferred)</h3>
 ///
-/// <h3 id="uuid-version-5">Name-based UUIDs: version 5 first</h3>
+/// Deterministic UUIDs from stable names. Same namespace + name always yields
+/// the same UUID. Uses SHA-1.
+/// [#generateV5(UUID, String)] computes the hash;
+/// [#v5(byte[])] wraps an existing 20-byte SHA-1 digest.
 ///
-/// For deterministic identifiers derived from stable names, use
-/// [#generateV5(UUID, String)]. The same namespace and name always produce the
-/// same UUID, which is useful for repeatable IDs across systems or runs.
-/// Version 5 uses SHA-1: [#generateV5(UUID, String)] and its overloads compute
-/// the digest; [#v5(byte[])] constructs the UUID from an existing 20-byte
-/// SHA-1 digest, using the first 16 digest bytes.
+/// <h3 id="uuid-version-3">Version 3 — MD5 name-based</h3>
 ///
-/// <h3 id="uuid-version-3">Legacy name-based UUIDs: version 3</h3>
+/// Same shape as version 5 but uses MD5. Only for interop with existing v3
+/// UUIDs. [#generateV3(UUID, String)] / [#generateV3(UUID, byte[])] /
+/// [#generateV3(UUID, ByteBuffer)] / [#v3(byte[])].
 ///
-/// Use version 3 only when compatibility with existing version-3 UUIDs is
-/// required. It has the same namespace-and-name shape as version 5 but uses
-/// MD5. [#generateV3(UUID, String)] and its overloads compute the MD5 digest;
-/// [#v3(byte[])] constructs the UUID from an existing 16-byte MD5 digest.
+/// <h3 id="uuid-version-4">Version 4 — random</h3>
 ///
-/// <h3 id="uuid-version-4">Random UUIDs: version 4</h3>
+/// Opaque random UUIDs. Widely supported, but random ordering hurts sorted-index
+/// locality. [#generateV4()] uses the default [SecureRandom];
+/// [#generateV4(RandomGenerator)] uses a caller-supplied generator;
+/// [#v4(long, long)] stamps bits from raw input.
 ///
-/// For opaque random identifiers that do not need time ordering, use
-/// [#generateV4()]. Version 4 is simple and widely supported, but its random
-/// ordering gives poor insertion locality for sorted indexes. [#generateV4()]
-/// uses the shared default [SecureRandom], [#generateV4(RandomGenerator)] uses
-/// the supplied random generator, and [#v4(long, long)] stamps the version and
-/// variant bits onto caller-provided raw random bits.
+/// <h3 id="uuid-version-8">Version 8 — custom</h3>
 ///
-/// <h3 id="uuid-version-8">Custom UUIDs: version 8</h3>
-///
-/// Use version 8 only for a documented application-specific layout. UUIDv8 does
-/// not define a uniqueness strategy for you; the application owns the meaning
-/// and collision properties of the non-version, non-variant bits.
-/// [#v8(long, long)] stamps the version and variant bits onto caller-provided
-/// raw 128-bit data and preserves every other bit.
+/// Application-defined layout. No built-in uniqueness strategy; the caller owns
+/// all non-version, non-variant bits. [#v8(long, long)] stamps version/variant
+/// onto raw 128-bit data.
 @NotNullByDefault
 public final class UUIDs {
 
@@ -118,51 +87,38 @@ public final class UUIDs {
     // Constants
     // ========================================================================
 
-    /// The nil UUID whose 128 bits are all zero (`00000000-0000-0000-0000-000000000000`),
-    /// as defined by RFC 9562 § 5.9.
+    /// All-zero UUID (`00000000-0000-0000-0000-000000000000`). RFC 9562 § 5.9.
     public static final UUID NIL = new UUID(0L, 0L);
 
-    /// The max UUID whose 128 bits are all one (`ffffffff-ffff-ffff-ffff-ffffffffffff`),
-    /// as defined by RFC 9562 § 5.10.
+    /// All-one UUID (`ffffffff-ffff-ffff-ffff-ffffffffffff`). RFC 9562 § 5.10.
     public static final UUID MAX = new UUID(-1L, -1L);
 
-    /// The predefined DNS namespace UUID (`6ba7b810-9dad-11d1-80b4-00c04fd430c8`),
-    /// as defined by RFC 9562 § 6.6.
+    /// DNS namespace UUID (`6ba7b810-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
     public static final UUID NAMESPACE_DNS = new UUID(0x6ba7b8109dad11d1L, 0x80b400c04fd430c8L);
 
-    /// The predefined URL namespace UUID (`6ba7b811-9dad-11d1-80b4-00c04fd430c8`),
-    /// as defined by RFC 9562 § 6.6.
+    /// URL namespace UUID (`6ba7b811-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
     public static final UUID NAMESPACE_URL = new UUID(0x6ba7b8119dad11d1L, 0x80b400c04fd430c8L);
 
-    /// The predefined OID namespace UUID (`6ba7b812-9dad-11d1-80b4-00c04fd430c8`),
-    /// as defined by RFC 9562 § 6.6.
+    /// OID namespace UUID (`6ba7b812-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
     public static final UUID NAMESPACE_OID = new UUID(0x6ba7b8129dad11d1L, 0x80b400c04fd430c8L);
 
-    /// The predefined X.500 DN namespace UUID (`6ba7b814-9dad-11d1-80b4-00c04fd430c8`),
-    /// as defined by RFC 9562 § 6.6.
+    /// X.500 DN namespace UUID (`6ba7b814-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
     public static final UUID NAMESPACE_X500 = new UUID(0x6ba7b8149dad11d1L, 0x80b400c04fd430c8L);
 
     // ========================================================================
     // Parsing
     // ========================================================================
 
-    /// Parses a UUID from its string representation.
+    /// Parses a UUID from a string. Supports formats:
     ///
-    /// The following formats are recognized based on the input length:
-    ///
-    /// | Length | Format                  | Example                                        |
-    /// |--------|-------------------------|------------------------------------------------|
-    /// | 36     | Standard hyphenated     | `550e8400-e29b-41d4-a716-446655440000`          |
-    /// | <=36   | Java-style hyphenated   | `1-1-1-1-1`                                    |
-    /// | 32     | Compact (no hyphens)    | `550e8400e29b41d4a716446655440000`              |
-    /// | 38     | Windows registry        | `{550e8400-e29b-41d4-a716-446655440000}`        |
-    /// | 45     | URN                     | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
-    /// | 22     | Base62                  | `6aGFHbkMKi3UrLaRLGaKzG`                       |
-    ///
-    /// Java-style hyphenated strings follow the parsing behavior of
-    /// [UUID#fromString(String)]: five hexadecimal groups separated by four
-    /// hyphens are parsed with [Long#parseLong(CharSequence, int, int, int)]
-    /// and masked into the canonical UUID fields.
+    /// | Format                  | Example                                        |
+    /// |-------------------------|------------------------------------------------|
+    /// | Standard                | `550e8400-e29b-41d4-a716-446655440000`          |
+    /// | Loose                   | `1-1-1-1-1`                                    |
+    /// | Compact                 | `550e8400e29b41d4a716446655440000`              |
+    /// | Windows registry        | `{550e8400-e29b-41d4-a716-446655440000}`        |
+    /// | URN                     | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
+    /// | Base62                  | `6aGFHbkMKi3UrLaRLGaKzG`                       |
     ///
     /// @param value the string to parse
     /// @return the parsed UUID
@@ -280,8 +236,7 @@ public final class UUIDs {
     // Formatting
     // ========================================================================
 
-    /// Returns the compact (no hyphens) 32-character lowercase hex string
-    /// representation of the UUID.
+    /// Compact 32-character lowercase hex string (no hyphens).
     ///
     /// Example: `550e8400e29b41d4a716446655440000`
     ///
@@ -293,7 +248,7 @@ public final class UUIDs {
                 + HEX_FORMAT.toHexDigits(uuid.getLeastSignificantBits());
     }
 
-    /// Returns the URN representation of the UUID as defined by RFC 9562 § 3.
+    /// URN representation per RFC 9562 § 3.
     ///
     /// Example: `urn:uuid:550e8400-e29b-41d4-a716-446655440000`
     ///
@@ -304,11 +259,10 @@ public final class UUIDs {
         return "urn:uuid:" + uuid;
     }
 
-    /// Returns the Base62-encoded string representation of the UUID.
+    /// Base62-encoded string (digit set `0-9A-Za-z`).
     ///
-    /// The 128-bit UUID value is interpreted as an unsigned integer and
-    /// encoded using the digit set `0-9A-Za-z`. The result is left-padded
-    /// with `0` characters to a fixed length of 22 characters.
+    /// The 128-bit value is interpreted as unsigned, encoded in Base62, and
+    /// left-padded with `0` to exactly 22 characters.
     ///
     /// Example: the nil UUID produces `0000000000000000000000`.
     ///
@@ -346,11 +300,9 @@ public final class UUIDs {
         return new String(buf);
     }
 
-    /// Returns the OID (Object Identifier) representation of the UUID,
-    /// under the joint ISO/ITU-T UUID arc `2.25`.
+    /// OID string under the joint ISO/ITU-T UUID arc `2.25`.
     ///
-    /// The 128-bit UUID value is interpreted as an unsigned integer and
-    /// appended to the `2.25.` prefix.
+    /// The 128-bit value is interpreted as unsigned and appended to `2.25.`.
     ///
     /// Example: `2.25.113059749145936325402354257176981405696`
     ///
@@ -372,11 +324,9 @@ public final class UUIDs {
     // Comparison
     // ========================================================================
 
-    /// Compares two UUIDs using unsigned lexicographic ordering on their
-    /// 128-bit values.
+    /// Compares two UUIDs as unsigned 128-bit integers.
     ///
-    /// This ordering treats the UUID as a single unsigned 128-bit integer,
-    /// comparing the most significant 64 bits first, then the least
+    /// Compares the most significant 64 bits first, then the least
     /// significant 64 bits.
     ///
     /// @param uuid1 the first UUID
@@ -389,8 +339,7 @@ public final class UUIDs {
                 uuid2.getMostSignificantBits(), uuid2.getLeastSignificantBits());
     }
 
-    /// Compares two UUIDs represented as raw 64-bit halves using unsigned
-    /// lexicographic ordering.
+    /// Compares two UUIDs from raw 64-bit halves as unsigned 128-bit integers.
     ///
     /// @param mostSigBits1  most significant 64 bits of the first UUID
     /// @param leastSigBits1 least significant 64 bits of the first UUID
@@ -408,10 +357,9 @@ public final class UUIDs {
         return Long.compareUnsigned(leastSigBits1, leastSigBits2);
     }
 
-    /// Returns a serializable [Comparator] that orders UUIDs using unsigned
-    /// lexicographic ordering, consistent with [#compare(UUID, UUID)].
+    /// A serializable [Comparator] using unsigned 128-bit ordering.
     ///
-    /// The returned comparator is a singleton and safe for concurrent use.
+    /// Singleton, safe for concurrent use, consistent with [#compare(UUID, UUID)].
     ///
     /// @return the UUID comparator
     @Contract(pure = true)
@@ -425,10 +373,8 @@ public final class UUIDs {
 
     /// Creates a version-1 UUID from an [Instant], clock sequence, and node.
     ///
-    /// The instant is converted to a Gregorian 100-nanosecond timestamp before
-    /// delegating to [#v1(long, int, long)]. See
-    /// <a href="#uuid-version-1">Version 1 UUIDs</a> for the shared version-1
-    /// construction rules.
+    /// Converts the instant to a Gregorian 100-nanosecond timestamp, then
+    /// delegates to [#v1(long, int, long)].
     ///
     /// @param instant       the timestamp instant
     /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are encoded
@@ -441,9 +387,6 @@ public final class UUIDs {
 
     /// Creates a version-1 UUID from a Gregorian 100-nanosecond timestamp,
     /// clock sequence, and node.
-    ///
-    /// See <a href="#uuid-version-1">Version 1 UUIDs</a> for the shared
-    /// version-1 construction rules.
     ///
     /// @param gregorianTimestamp the 60-bit timestamp; only the low 60 bits are encoded
     /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are encoded
@@ -460,23 +403,19 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 1);
     }
 
-    /// Generates a new version-1 UUID using the system clock and the default
+    /// Generates a version-1 UUID from the system clock and default
     /// [SecureRandom].
-    ///
-    /// See <a href="#uuid-version-1">Version 1 UUIDs</a> for the shared
-    /// version-1 generation rules.
     ///
     /// @return a freshly generated version-1 UUID
     public static UUID generateV1() {
         return generateV1(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
     }
 
-    /// Generates a new version-1 UUID using the given time source and random
+    /// Generates a version-1 UUID from the given time source and random
     /// generator.
     ///
-    /// The random generator supplies the clock sequence and randomized node.
-    /// The generated node has the multicast bit set to identify it as a
-    /// non-IEEE random node value.
+    /// The random generator supplies the clock sequence and node. The node has
+    /// its multicast bit set (non-IEEE random node).
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
@@ -491,9 +430,6 @@ public final class UUIDs {
 
     /// Creates a version-3 UUID from a 16-byte MD5 digest.
     ///
-    /// See <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
-    /// version-3 construction rules.
-    ///
     /// @param md5Digest the 16-byte MD5 digest
     /// @return a version-3 UUID
     /// @throws IllegalArgumentException if `md5Digest` is not exactly 16 bytes long
@@ -507,9 +443,7 @@ public final class UUIDs {
 
     /// Generates a version-3 UUID from a string name.
     ///
-    /// The name is encoded as UTF-8 before hashing. See
-    /// <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
-    /// version-3 generation rules.
+    /// The name is encoded as UTF-8 before hashing.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name to hash
@@ -519,10 +453,7 @@ public final class UUIDs {
         return generateV3(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
-    /// Generates a version-3 UUID from byte-array name data.
-    ///
-    /// See <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
-    /// version-3 generation rules.
+    /// Generates a version-3 UUID from a byte array.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name bytes to hash
@@ -532,11 +463,7 @@ public final class UUIDs {
         return nameBasedUUID(name, namespace, "MD5", 3);
     }
 
-    /// Generates a version-3 UUID from [ByteBuffer] name data.
-    ///
-    /// All remaining bytes in the buffer are consumed. See
-    /// <a href="#uuid-version-3">Version 3 UUIDs</a> for the shared
-    /// version-3 generation rules.
+    /// Generates a version-3 UUID from the remaining bytes of a [ByteBuffer].
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the buffer whose remaining bytes are hashed
@@ -550,11 +477,7 @@ public final class UUIDs {
     // Version 4 — random
     // ========================================================================
 
-    /// Creates a version-4 UUID from the given raw 128-bit value.
-    ///
-    /// See <a href="#uuid-version-4">Version 4 UUIDs</a> for the shared
-    /// version-4 construction rules. Callers are expected to supply random
-    /// input.
+    /// Creates a version-4 UUID from raw 128-bit random data.
     ///
     /// @param mostSigBits  the most significant 64 bits (before version stamping)
     /// @param leastSigBits the least significant 64 bits (before variant stamping)
@@ -564,20 +487,14 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 4);
     }
 
-    /// Generates a new version-4 UUID using the default [SecureRandom].
-    ///
-    /// See <a href="#uuid-version-4">Version 4 UUIDs</a> for the shared
-    /// version-4 generation rules.
+    /// Generates a version-4 UUID using the default [SecureRandom].
     ///
     /// @return a freshly generated version-4 UUID
     public static UUID generateV4() {
         return generateV4(RandomGeneratorHolder.INSTANCE);
     }
 
-    /// Generates a new version-4 UUID using the given random generator.
-    ///
-    /// See <a href="#uuid-version-4">Version 4 UUIDs</a> for the shared
-    /// version-4 generation rules.
+    /// Generates a version-4 UUID using the given random generator.
     ///
     /// @param randomGenerator the source of randomness
     /// @return a freshly generated version-4 UUID
@@ -590,9 +507,6 @@ public final class UUIDs {
     // ========================================================================
 
     /// Creates a version-5 UUID from a 20-byte SHA-1 digest.
-    ///
-    /// See <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
-    /// version-5 construction rules.
     ///
     /// @param sha1Digest the 20-byte SHA-1 digest
     /// @return a version-5 UUID
@@ -607,9 +521,7 @@ public final class UUIDs {
 
     /// Generates a version-5 UUID from a string name.
     ///
-    /// The name is encoded as UTF-8 before hashing. See
-    /// <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
-    /// version-5 generation rules.
+    /// The name is encoded as UTF-8 before hashing.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name to hash
@@ -619,10 +531,7 @@ public final class UUIDs {
         return generateV5(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
-    /// Generates a version-5 UUID from byte-array name data.
-    ///
-    /// See <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
-    /// version-5 generation rules.
+    /// Generates a version-5 UUID from a byte array.
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name bytes to hash
@@ -632,11 +541,7 @@ public final class UUIDs {
         return nameBasedUUID(name, namespace, "SHA-1", 5);
     }
 
-    /// Generates a version-5 UUID from [ByteBuffer] name data.
-    ///
-    /// All remaining bytes in the buffer are consumed. See
-    /// <a href="#uuid-version-5">Version 5 UUIDs</a> for the shared
-    /// version-5 generation rules.
+    /// Generates a version-5 UUID from the remaining bytes of a [ByteBuffer].
     ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the buffer whose remaining bytes are hashed
@@ -652,10 +557,8 @@ public final class UUIDs {
 
     /// Creates a version-6 UUID from an [Instant], clock sequence, and node.
     ///
-    /// The instant is converted to a Gregorian 100-nanosecond timestamp before
-    /// delegating to [#v6(long, int, long)]. See
-    /// <a href="#uuid-version-6">Version 6 UUIDs</a> for the shared version-6
-    /// construction rules.
+    /// Converts the instant to a Gregorian 100-nanosecond timestamp, then
+    /// delegates to [#v6(long, int, long)].
     ///
     /// @param instant       the timestamp instant
     /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are encoded
@@ -668,9 +571,6 @@ public final class UUIDs {
 
     /// Creates a version-6 UUID from a Gregorian 100-nanosecond timestamp,
     /// clock sequence, and node.
-    ///
-    /// See <a href="#uuid-version-6">Version 6 UUIDs</a> for the shared
-    /// version-6 construction rules.
     ///
     /// @param gregorianTimestamp the 60-bit timestamp; only the low 60 bits are encoded
     /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are encoded
@@ -685,23 +585,19 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 6);
     }
 
-    /// Generates a new version-6 UUID using the system clock and the default
+    /// Generates a version-6 UUID from the system clock and default
     /// [SecureRandom].
-    ///
-    /// See <a href="#uuid-version-6">Version 6 UUIDs</a> for the shared
-    /// version-6 generation rules.
     ///
     /// @return a freshly generated version-6 UUID
     public static UUID generateV6() {
         return generateV6(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
     }
 
-    /// Generates a new version-6 UUID using the given time source and random
+    /// Generates a version-6 UUID from the given time source and random
     /// generator.
     ///
-    /// The random generator supplies the clock sequence and randomized node.
-    /// The generated node has the multicast bit set to identify it as a
-    /// non-IEEE random node value.
+    /// The random generator supplies the clock sequence and node. The node has
+    /// its multicast bit set (non-IEEE random node).
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
@@ -714,12 +610,10 @@ public final class UUIDs {
     // Version 7 — time-ordered
     // ========================================================================
 
-    /// Creates a version-7 UUID from an [Instant] timestamp and random bits.
+    /// Creates a version-7 UUID from an [Instant] and random bits.
     ///
-    /// The instant is converted to milliseconds since the Unix epoch before
-    /// delegating to [#v7(long, long)]. See
-    /// <a href="#uuid-version-7">Version 7 UUIDs</a> for the shared version-7
-    /// construction rules.
+    /// Converts the instant to Unix epoch milliseconds, then delegates to
+    /// [#v7(long, long)].
     ///
     /// @param instant    the timestamp
     /// @param randomBits random bits filling the non-timestamp, non-version,
@@ -732,9 +626,6 @@ public final class UUIDs {
 
     /// Creates a version-7 UUID from a Unix epoch millisecond timestamp and
     /// random bits.
-    ///
-    /// See <a href="#uuid-version-7">Version 7 UUIDs</a> for the shared
-    /// version-7 construction rules.
     ///
     /// @param epochMilli the Unix epoch millisecond timestamp
     /// @param randomBits random bits filling the non-timestamp positions
@@ -749,24 +640,16 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 7);
     }
 
-    /// Generates a new version-7 UUID using the system clock and the default
+    /// Generates a version-7 UUID from the system clock and default
     /// [SecureRandom].
-    ///
-    /// See <a href="#uuid-version-7">Version 7 UUIDs</a> for the shared
-    /// version-7 generation rules.
     ///
     /// @return a freshly generated version-7 UUID
     public static UUID generateV7() {
         return generateV7(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
     }
 
-    /// Generates a new version-7 UUID using the given time source and random
+    /// Generates a version-7 UUID from the given time source and random
     /// generator.
-    ///
-    /// Obtains the current millisecond timestamp from `instantSource` and
-    /// random bits from `randomGenerator`, then delegates to
-    /// [#v7(long, long)]. See <a href="#uuid-version-7">Version 7 UUIDs</a>
-    /// for the shared version-7 generation rules.
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
@@ -781,10 +664,7 @@ public final class UUIDs {
     // Version 8 — custom/experimental
     // ========================================================================
 
-    /// Creates a version-8 (custom) UUID from the given raw 128-bit value.
-    ///
-    /// See <a href="#uuid-version-8">Version 8 UUIDs</a> for the shared
-    /// version-8 construction rules.
+    /// Creates a version-8 (custom) UUID from raw 128-bit data.
     ///
     /// @param mostSigBits  the most significant 64 bits (before version stamping)
     /// @param leastSigBits the least significant 64 bits (before variant stamping)
@@ -798,17 +678,16 @@ public final class UUIDs {
     // Low-level helper
     // ========================================================================
 
-    /// Stamps the given version and the RFC 9562 variant (`10`) onto a raw
-    /// 128-bit value and returns the resulting [UUID].
+    /// Stamps version and RFC 9562 variant (`10x`) onto a raw 128-bit value.
     ///
-    /// The version occupies bits 48–51 of `mostSigBits`. The two
-    /// most-significant bits of `leastSigBits` are set to `10` (variant 2).
-    /// All other bits are preserved from the input.
+    /// Version goes into bits 48–51 of `mostSigBits`. The top two bits of
+    /// `leastSigBits` are set to `10` (variant 2). All other bits are
+    /// preserved.
     ///
     /// @param mostSigBits  the most significant 64 bits
     /// @param leastSigBits the least significant 64 bits
     /// @param version      the UUID version (0–15)
-    /// @return a UUID with the specified version and variant bits set
+    /// @return a UUID with the specified version and variant
     @Contract(pure = true)
     public static UUID newWithVersion(long mostSigBits, long leastSigBits, int version) {
         // Clear version bits (48–51) and set the requested version
@@ -852,19 +731,17 @@ public final class UUIDs {
     private static final byte[] BASE62_CHARS =
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
 
-    /// Holder for the default [SecureRandom] instance, initialized lazily.
+    /// Lazy holder for the default [SecureRandom] instance.
     private static final class RandomGeneratorHolder {
-        /// The shared [SecureRandom] instance.
         static final SecureRandom INSTANCE = new SecureRandom();
     }
 
-    /// Serializable [Comparator] for UUIDs using unsigned lexicographic ordering.
+    /// Serializable [Comparator] with unsigned 128-bit ordering.
     private static final class UUIDComparator implements Comparator<UUID>, Serializable {
 
         /// The singleton instance.
         static final UUIDComparator INSTANCE = new UUIDComparator();
 
-        /// Serial version UID for serialization compatibility.
         @Serial
         private static final long serialVersionUID = 1L;
 
@@ -873,7 +750,6 @@ public final class UUIDs {
             return UUIDs.compare(o1, o2);
         }
 
-        /// Returns the singleton on deserialization.
         @Serial
         private Object readResolve() {
             return INSTANCE;
@@ -913,8 +789,8 @@ public final class UUIDs {
                 && value.charAt(offset + 18) == '-' && value.charAt(offset + 23) == '-';
     }
 
-    /// Parses a bare hyphenated UUID using the lenient rules of
-    /// [UUID#fromString(String)] and precomputed hyphen positions.
+    /// Parses a hyphenated UUID using [UUID#fromString(String)]-compatible
+    /// lenient parsing with precomputed hyphen positions.
     private static UUID parseLenientStandard(String value, int dash1, int dash2, int dash3, int dash4, int dashCount) {
         int length = value.length();
         if (length > 36) {
@@ -1025,7 +901,8 @@ public final class UUIDs {
         return (timeHighMid << 12) | timeLow;
     }
 
-    /// Converts an [Instant] to a Gregorian 100-nanosecond timestamp.
+    /// Converts an [Instant] to a Gregorian 100-nanosecond timestamp since
+    /// 1582-10-15T00:00:00Z.
     private static long gregorianTimestamp(Instant instant) {
         long seconds = Math.multiplyExact(instant.getEpochSecond(), 10_000_000L);
         long nanos100 = instant.getNano() / 100L;
@@ -1071,7 +948,7 @@ public final class UUIDs {
         return uuidFromHash(digest.digest(), version);
     }
 
-    /// Feeds the 16-byte big-endian representation of a UUID into a digest.
+    /// Feeds a UUID's 16 big-endian bytes into a digest.
     private static void feedUUID(MessageDigest digest, UUID uuid) {
         long msb = uuid.getMostSignificantBits();
         long lsb = uuid.getLeastSignificantBits();
@@ -1083,8 +960,7 @@ public final class UUIDs {
         digest.update(bytes);
     }
 
-    /// Constructs a UUID from the first 16 bytes of a hash digest, applying
-    /// the given version and RFC 9562 variant.
+    /// Constructs a UUID from the first 16 bytes of a hash digest.
     private static UUID uuidFromHash(byte[] hash, int version) {
         long mostSigBits = 0;
         long leastSigBits = 0;
@@ -1097,9 +973,9 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, version);
     }
 
-    /// Returns a [MessageDigest] for the given algorithm, wrapping the checked
-    /// exception in an [InternalError] since MD5 and SHA-1 are always
-    /// available in conforming JREs.
+    /// Returns a [MessageDigest] for the algorithm. Wraps
+    /// [NoSuchAlgorithmException] in [InternalError] — MD5 and SHA-1 are
+    /// always present in conforming JREs.
     private static MessageDigest getDigest(String algorithm) {
         try {
             return MessageDigest.getInstance(algorithm);
