@@ -79,14 +79,16 @@ import java.util.random.RandomGenerator;
 /// Uses a 60-bit 100-nanosecond Gregorian timestamp, a 14-bit clock sequence,
 /// and a 48-bit node. The timestamp bits are not in sort order, so version-1
 /// UUIDs do not sort chronologically. Version 7 is the preferred replacement.
-/// See [#v1(long, int, long)], [#v1(Instant, int, long)], [#generateV1()].
+/// See [#v1(long, int, long)], [#v1(Instant, int, long)], [#generateV1()],
+/// and [#convertV1ToV6(UUID)].
 ///
 /// <h3 id="uuid-version-6">Version 6 — reordered time-based (legacy)</h3>
 ///
 /// Same fields as version 1 with the timestamp bits reordered for
 /// chronological sorting. Version 7 is simpler and equally sortable, so
 /// version 6 is only needed for interoperability with existing version-6 data.
-/// See [#v6(long, int, long)], [#v6(Instant, int, long)], [#generateV6()].
+/// See [#v6(long, int, long)], [#v6(Instant, int, long)], [#generateV6()],
+/// and [#convertV6ToV1(UUID)].
 ///
 /// <h3 id="uuid-version-3">Version 3 — MD5 name-based (legacy)</h3>
 ///
@@ -700,6 +702,42 @@ public final class UUIDs {
     }
 
     // ========================================================================
+    // Version 1/6 conversion
+    // ========================================================================
+
+    /// Converts a version-1 UUID to the equivalent version-6 UUID.
+    ///
+    /// The Gregorian timestamp, clock sequence, and node are preserved. Only
+    /// the timestamp field order and version bits change.
+    ///
+    /// @param uuid the source version-1 UUID
+    /// @return an equivalent version-6 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version-1 UUID
+    @Contract(pure = true)
+    public static UUID convertV1ToV6(UUID uuid) {
+        if (uuid.version() != 1) {
+            throw new IllegalArgumentException("Expected a version-1 UUID");
+        }
+        return v6(getV1Timestamp(uuid), getClockSequence(uuid), getNode(uuid));
+    }
+
+    /// Converts a version-6 UUID to the equivalent version-1 UUID.
+    ///
+    /// The Gregorian timestamp, clock sequence, and node are preserved. Only
+    /// the timestamp field order and version bits change.
+    ///
+    /// @param uuid the source version-6 UUID
+    /// @return an equivalent version-1 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version-6 UUID
+    @Contract(pure = true)
+    public static UUID convertV6ToV1(UUID uuid) {
+        if (uuid.version() != 6) {
+            throw new IllegalArgumentException("Expected a version-6 UUID");
+        }
+        return v1(getV6Timestamp(uuid), getClockSequence(uuid), getNode(uuid));
+    }
+
+    // ========================================================================
     // Version 7 — time-ordered
     // ========================================================================
 
@@ -1010,6 +1048,16 @@ public final class UUIDs {
         long timeHighMid = (msb >>> 16) & 0xFFFF_FFFF_FFFFL;
         long timeLow = msb & 0x0FFFL;
         return (timeHighMid << 12) | timeLow;
+    }
+
+    /// Extracts the 14-bit clock sequence shared by version-1 and version-6 UUIDs.
+    private static int getClockSequence(UUID uuid) {
+        return (int) (uuid.getLeastSignificantBits() >>> 48) & CLOCK_SEQUENCE_MASK;
+    }
+
+    /// Extracts the 48-bit node shared by version-1 and version-6 UUIDs.
+    private static long getNode(UUID uuid) {
+        return uuid.getLeastSignificantBits() & NODE_MASK;
     }
 
     /// Converts an [Instant] to a Gregorian 100-nanosecond timestamp since

@@ -407,6 +407,39 @@ class UUIDsTest {
         assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
     }
 
+    // ---- Version 1/6 conversion ----
+
+    @Test
+    void convertV1ToV6() {
+        UUID v1 = UUID.fromString("13814000-1dd2-11b2-9234-123456789abc");
+        UUID v6 = UUIDs.convertV1ToV6(v1);
+        assertEquals(UUID.fromString("1b21dd21-3814-6000-9234-123456789abc"), v6);
+    }
+
+    @Test
+    void convertV6ToV1() {
+        UUID v6 = UUID.fromString("1b21dd21-3814-6000-9234-123456789abc");
+        UUID v1 = UUIDs.convertV6ToV1(v6);
+        assertEquals(UUID.fromString("13814000-1dd2-11b2-9234-123456789abc"), v1);
+    }
+
+    @Test
+    void convertV1AndV6RoundTrip() {
+        UUID v1 = UUIDs.v1(0x01B2_1DD2_1381_4001L, 0x3FFF, 0xFFFF_FFFF_FFFFL);
+        assertEquals(v1, UUIDs.convertV6ToV1(UUIDs.convertV1ToV6(v1)));
+
+        UUID v6 = UUIDs.v6(0x01B2_1DD2_1381_4001L, 0x3FFF, 0xFFFF_FFFF_FFFFL);
+        assertEquals(v6, UUIDs.convertV1ToV6(UUIDs.convertV6ToV1(v6)));
+    }
+
+    @Test
+    void convertV1AndV6RejectWrongVersion() {
+        UUID v1 = UUIDs.v1(0, 0, 0);
+        UUID v6 = UUIDs.v6(0, 0, 0);
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.convertV1ToV6(v6));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.convertV6ToV1(v1));
+    }
+
     // ---- Version 7 (time-ordered) ----
 
     @Test
