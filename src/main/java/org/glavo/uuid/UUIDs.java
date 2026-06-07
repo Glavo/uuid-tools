@@ -51,9 +51,9 @@ import java.util.random.RandomGenerator;
 /// <h3 id="uuid-version-7">Version 7 — time-ordered</h3>
 ///
 /// Stores a 48-bit Unix millisecond timestamp in the most significant bits,
-/// followed by random bits. UUIDs generated in order are therefore roughly
-/// sorted by creation time. This is the preferred version for time-based UUIDs
-/// in new applications.
+/// followed by the `rand_a` and `rand_b` fields. UUIDs generated in order are
+/// therefore roughly sorted by creation time. This is the preferred version
+/// for time-based UUIDs in new applications.
 /// See [#v7(long, int, long)], [#v7(Instant, int, long)], [#generateV7()], and
 /// [#generateV7(InstantSource, RandomGenerator)].
 ///
@@ -743,9 +743,11 @@ public final class UUIDs {
     /// @param randomGenerator the source of randomness
     /// @return a version-7 UUID
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
-        long milli = instantSource.millis();
+        Instant instant = instantSource.instant();
         long randomBits = randomGenerator.nextLong();
-        return v7(milli, (int) (randomBits >>> 52), randomBits);
+        int randA = (v7SubMillisecondFraction(instant) << V7_RANDOM_A_RANDOM_BITS)
+                | (int) (randomBits >>> (Long.SIZE - V7_RANDOM_A_RANDOM_BITS));
+        return v7(instant.toEpochMilli(), randA, randomBits);
     }
 
     // ========================================================================
@@ -816,8 +818,17 @@ public final class UUIDs {
     /// A mask for the 62-bit `rand_b` field used by version 7 UUIDs.
     private static final long V7_RANDOM_B_MASK = 0x3FFF_FFFF_FFFF_FFFFL;
 
+    /// The number of `rand_a` bits used for the sub-millisecond fraction.
+    private static final int V7_SUB_MILLI_FRACTION_BITS = 10;
+
+    /// The number of `rand_a` bits filled from the random source.
+    private static final int V7_RANDOM_A_RANDOM_BITS = 2;
+
     /// The multicast bit in the first octet of a randomly generated node ID.
     private static final long RANDOM_NODE_MULTICAST_MASK = 1L << 40;
+
+    /// The number of nanoseconds in one millisecond.
+    private static final int NANOS_PER_MILLI = 1_000_000;
 
     /// A mask for reading an `int`-sized limb as an unsigned 32-bit value.
     private static final long UINT_MASK = 0xFFFF_FFFFL;
@@ -1023,6 +1034,12 @@ public final class UUIDs {
         long seconds = Math.floorDiv(unixNanos100, 10_000_000L);
         long nanoAdjustment = Math.floorMod(unixNanos100, 10_000_000L) * 100L;
         return Instant.ofEpochSecond(seconds, nanoAdjustment);
+    }
+
+    /// Converts the sub-millisecond part of an instant to a 10-bit fraction.
+    private static int v7SubMillisecondFraction(Instant instant) {
+        int nanoOfMilli = instant.getNano() % NANOS_PER_MILLI;
+        return (int) (((long) nanoOfMilli << V7_SUB_MILLI_FRACTION_BITS) / NANOS_PER_MILLI);
     }
 
     /// Generates a random 14-bit clock sequence.

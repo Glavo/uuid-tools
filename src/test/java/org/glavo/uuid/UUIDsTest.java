@@ -453,6 +453,7 @@ class UUIDsTest {
 
     @Test
     void generateV7UsesSingleRandomLong() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
         long randomBits = 0xFEDC_BA98_7654_3210L;
         Random random = new Random() {
             private boolean used;
@@ -471,9 +472,12 @@ class UUIDsTest {
             }
         };
 
-        UUID result = UUIDs.generateV7(InstantSource.fixed(Instant.EPOCH), random);
-        assertEquals((int) (randomBits >>> 52) & 0x0FFF,
-                (int) (result.getMostSignificantBits() & 0x0FFFL));
+        UUID result = UUIDs.generateV7(InstantSource.fixed(instant), random);
+        int subMillisecondFraction = (int) (((long) (instant.getNano() % 1_000_000) << 10)
+                / 1_000_000);
+        int randA = (subMillisecondFraction << 2) | (int) (randomBits >>> 62);
+        assertEquals(instant.toEpochMilli(), result.getMostSignificantBits() >>> 16);
+        assertEquals(randA, (int) (result.getMostSignificantBits() & 0x0FFFL));
         assertEquals(randomBits & 0x3FFF_FFFF_FFFF_FFFFL,
                 result.getLeastSignificantBits() & 0x3FFF_FFFF_FFFF_FFFFL);
     }
