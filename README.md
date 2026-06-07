@@ -162,6 +162,23 @@ UUID _ = UUIDs.fromBytes(bytes);
 UUID _ = UUIDs.fromBytes(bytes, offset);
 ```
 
+## Comparison with UUID Creator
+
+[UUID Creator](https://github.com/f4b6a3/uuid-creator) is a well-established
+library in the Java ecosystem with many related features, and uuid-tools has
+drawn inspiration from its design and test suite.
+
+Compared to UUID Creator, uuid-tools is significantly lighter (JAR ~15 KiB,
+roughly 1/10 the size) and offers a simpler, more modern API that is easy to
+learn and use.
+
+uuid-tools' API resembles UUID Creator's `GUID` class, but clearly separates
+UUID generation from construction for better semantic clarity, and is built
+for modern Java (Java 17+).
+
+uuid-tools also allows direct construction of UUIDs from their underlying
+fields, making it easy to implement custom UUID generation strategies.
+
 ## Requirements
 
 - Java 17 or later
