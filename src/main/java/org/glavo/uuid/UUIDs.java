@@ -9,8 +9,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -336,12 +339,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static String toOIDString(UUID uuid) {
         byte[] bytes = new byte[17]; // 1 extra byte for unsigned interpretation
-        long msb = uuid.getMostSignificantBits();
-        long lsb = uuid.getLeastSignificantBits();
-        for (int i = 0; i < 8; i++) {
-            bytes[i + 1] = (byte) (msb >>> (56 - i * 8));
-            bytes[i + 9] = (byte) (lsb >>> (56 - i * 8));
-        }
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 1, uuid.getMostSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 9, uuid.getLeastSignificantBits());
         return "2.25." + new BigInteger(bytes);
     }
 
@@ -359,12 +358,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static byte[] toBytes(UUID uuid) {
         byte[] bytes = new byte[16];
-        long msb = uuid.getMostSignificantBits();
-        long lsb = uuid.getLeastSignificantBits();
-        for (int i = 0; i < 8; i++) {
-            bytes[i] = (byte) (msb >>> (56 - i * 8));
-            bytes[i + 8] = (byte) (lsb >>> (56 - i * 8));
-        }
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 0, uuid.getMostSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 8, uuid.getLeastSignificantBits());
         return bytes;
     }
 
@@ -391,12 +386,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static UUID fromBytes(byte[] bytes, int offset) {
         Objects.checkFromIndexSize(offset, 16, bytes.length);
-        long msb = 0L;
-        long lsb = 0L;
-        for (int i = 0; i < 8; i++) {
-            msb = (msb << 8) | (bytes[offset + i] & 0xFFL);
-            lsb = (lsb << 8) | (bytes[offset + 8 + i] & 0xFFL);
-        }
+        long msb = (long) BYTE_ARRAY_LONG_VIEW.get(bytes, offset);
+        long lsb = (long) BYTE_ARRAY_LONG_VIEW.get(bytes, offset + 8);
         return new UUID(msb, lsb);
     }
 
@@ -912,6 +903,10 @@ public final class UUIDs {
 
     /// A reusable lowercase hexadecimal formatter.
     private static final HexFormat HEX_FORMAT = HexFormat.of();
+
+    /// Big-endian byte-array view used to read and write 64-bit UUID halves.
+    private static final VarHandle BYTE_ARRAY_LONG_VIEW =
+            MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
 
     /// The Base62 character set: `0-9A-Za-z`.
     private static final byte[] BASE62_CHARS =
