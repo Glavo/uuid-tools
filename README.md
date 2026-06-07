@@ -174,7 +174,7 @@ byte[] bytes = UUIDs.toBytes(uuid);
 UUID decoded = UUIDs.fromBytes(bytes);
 
 byte[] payload = new byte[20];
-System.arraycopy(bytes, 0, payload, 2, bytes.length);
+UUIDs.toBytes(uuid, payload, 2);
 UUID decodedFromOffset = UUIDs.fromBytes(payload, 2);
 ```
 

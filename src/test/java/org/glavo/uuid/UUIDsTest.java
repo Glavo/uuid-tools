@@ -210,6 +210,31 @@ class UUIDsTest {
     }
 
     @Test
+    void toBytesWithOffsetWritesBigEndianOrder() {
+        UUID uuid = UUID.fromString("00112233-4455-6677-8899-aabbccddeeff");
+        byte[] bytes = {
+                0x55, 0x66,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x77, 0x11
+        };
+        byte[] expected = {
+                0x55, 0x66,
+                0x00, 0x11, 0x22, 0x33,
+                0x44, 0x55, 0x66, 0x77,
+                (byte) 0x88, (byte) 0x99, (byte) 0xAA, (byte) 0xBB,
+                (byte) 0xCC, (byte) 0xDD, (byte) 0xEE, (byte) 0xFF,
+                0x77, 0x11
+        };
+
+        UUIDs.toBytes(uuid, bytes, 2);
+
+        assertArrayEquals(expected, bytes);
+    }
+
+    @Test
     void fromBytesUsesBigEndianOrder() {
         byte[] bytes = {
                 0x00, 0x11, 0x22, 0x33,
@@ -243,6 +268,14 @@ class UUIDsTest {
     void fromBytesRejectsInvalidLength() {
         assertThrows(IllegalArgumentException.class, () -> UUIDs.fromBytes(new byte[15]));
         assertThrows(IllegalArgumentException.class, () -> UUIDs.fromBytes(new byte[17]));
+    }
+
+    @Test
+    void toBytesWithOffsetRejectsOutOfBounds() {
+        UUID uuid = UUIDs.NIL;
+        assertThrows(IndexOutOfBoundsException.class, () -> UUIDs.toBytes(uuid, new byte[16], -1));
+        assertThrows(IndexOutOfBoundsException.class, () -> UUIDs.toBytes(uuid, new byte[16], 1));
+        assertThrows(IndexOutOfBoundsException.class, () -> UUIDs.toBytes(uuid, new byte[20], 5));
     }
 
     @Test

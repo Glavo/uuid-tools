@@ -71,6 +71,7 @@ import java.util.random.RandomGenerator;
 ///
 /// ```java
 /// byte[] bytes = UUIDs.toBytes(timeOrdered);
+/// UUIDs.toBytes(timeOrdered, bytes, 0);
 /// UUID decoded = UUIDs.fromBytes(bytes);
 /// ```
 ///
@@ -547,9 +548,23 @@ public final class UUIDs {
     @Contract(pure = true)
     public static byte[] toBytes(UUID uuid) {
         byte[] bytes = new byte[16];
-        BYTE_ARRAY_LONG_VIEW.set(bytes, 0, uuid.getMostSignificantBits());
-        BYTE_ARRAY_LONG_VIEW.set(bytes, 8, uuid.getLeastSignificantBits());
+        toBytes(uuid, bytes, 0);
         return bytes;
+    }
+
+    /// Writes the 16-byte big-endian representation of a UUID into an
+    /// existing byte array.
+    ///
+    /// @param uuid   the UUID to convert
+    /// @param bytes  the destination byte array
+    /// @param offset the offset of the first destination byte
+    /// @throws IndexOutOfBoundsException if `offset` is negative or if fewer
+    ///                                   than 16 bytes are available
+    @Contract(mutates = "param2")
+    public static void toBytes(UUID uuid, byte[] bytes, int offset) {
+        Objects.checkFromIndexSize(offset, 16, bytes.length);
+        BYTE_ARRAY_LONG_VIEW.set(bytes, offset, uuid.getMostSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, offset + 8, uuid.getLeastSignificantBits());
     }
 
     /// Creates a UUID from a 16-byte big-endian representation.
