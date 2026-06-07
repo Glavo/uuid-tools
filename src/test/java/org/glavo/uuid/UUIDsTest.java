@@ -200,31 +200,51 @@ class UUIDsTest {
     // ---- Version 3 (MD5) ----
 
     @Test
-    void v3WithDnsNamespace() {
-        UUID result = UUIDs.v3(NS_DNS, "www.example.com");
+    void v3FromMd5Digest() {
+        byte[] digest = {
+                0x00, 0x01, 0x02, 0x03,
+                0x04, 0x05, 0x06, 0x07,
+                0x08, 0x09, 0x0A, 0x0B,
+                0x0C, 0x0D, 0x0E, 0x0F
+        };
+        UUID result = UUIDs.v3(digest);
+        assertEquals(3, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(UUID.fromString("00010203-0405-3607-8809-0a0b0c0d0e0f"), result);
+    }
+
+    @Test
+    void v3RejectsInvalidMd5DigestLength() {
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.v3(new byte[15]));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.v3(new byte[17]));
+    }
+
+    @Test
+    void generateV3WithDnsNamespace() {
+        UUID result = UUIDs.generateV3(NS_DNS, "www.example.com");
         assertEquals(3, result.version());
         assertEquals(2, result.variant());
         assertEquals(UUID.fromString("5df41881-3aed-3515-88a7-2f4a814cf09e"), result);
     }
 
     @Test
-    void v3ByteArrayMatchesString() {
-        UUID fromString = UUIDs.v3(NS_DNS, "www.example.com");
-        UUID fromBytes = UUIDs.v3(NS_DNS, "www.example.com".getBytes(StandardCharsets.UTF_8));
+    void generateV3ByteArrayMatchesString() {
+        UUID fromString = UUIDs.generateV3(NS_DNS, "www.example.com");
+        UUID fromBytes = UUIDs.generateV3(NS_DNS, "www.example.com".getBytes(StandardCharsets.UTF_8));
         assertEquals(fromString, fromBytes);
     }
 
     @Test
-    void v3ByteBufferMatchesString() {
-        UUID fromString = UUIDs.v3(NS_DNS, "www.example.com");
+    void generateV3ByteBufferMatchesString() {
+        UUID fromString = UUIDs.generateV3(NS_DNS, "www.example.com");
         byte[] nameBytes = "www.example.com".getBytes(StandardCharsets.UTF_8);
-        UUID fromBuffer = UUIDs.v3(NS_DNS, ByteBuffer.wrap(nameBytes));
+        UUID fromBuffer = UUIDs.generateV3(NS_DNS, ByteBuffer.wrap(nameBytes));
         assertEquals(fromString, fromBuffer);
     }
 
     @Test
-    void v3WithNullNamespace() {
-        UUID result = UUIDs.v3(null, "test");
+    void generateV3WithNullNamespace() {
+        UUID result = UUIDs.generateV3(null, "test");
         assertEquals(3, result.version());
         assertEquals(2, result.variant());
     }
@@ -248,17 +268,38 @@ class UUIDsTest {
     // ---- Version 5 (SHA-1) ----
 
     @Test
-    void v5WithDnsNamespace() {
-        UUID result = UUIDs.v5(NS_DNS, "www.example.com");
+    void v5FromSha1Digest() {
+        byte[] digest = {
+                0x00, 0x01, 0x02, 0x03,
+                0x04, 0x05, 0x06, 0x07,
+                0x08, 0x09, 0x0A, 0x0B,
+                0x0C, 0x0D, 0x0E, 0x0F,
+                0x10, 0x11, 0x12, 0x13
+        };
+        UUID result = UUIDs.v5(digest);
+        assertEquals(5, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(UUID.fromString("00010203-0405-5607-8809-0a0b0c0d0e0f"), result);
+    }
+
+    @Test
+    void v5RejectsInvalidSha1DigestLength() {
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.v5(new byte[16]));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.v5(new byte[21]));
+    }
+
+    @Test
+    void generateV5WithDnsNamespace() {
+        UUID result = UUIDs.generateV5(NS_DNS, "www.example.com");
         assertEquals(5, result.version());
         assertEquals(2, result.variant());
         assertEquals(UUID.fromString("2ed6657d-e927-568b-95e1-2665a8aea6a2"), result);
     }
 
     @Test
-    void v5ByteArrayMatchesString() {
-        UUID fromString = UUIDs.v5(NS_DNS, "www.example.com");
-        UUID fromBytes = UUIDs.v5(NS_DNS, "www.example.com".getBytes(StandardCharsets.UTF_8));
+    void generateV5ByteArrayMatchesString() {
+        UUID fromString = UUIDs.generateV5(NS_DNS, "www.example.com");
+        UUID fromBytes = UUIDs.generateV5(NS_DNS, "www.example.com".getBytes(StandardCharsets.UTF_8));
         assertEquals(fromString, fromBytes);
     }
 

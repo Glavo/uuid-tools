@@ -361,6 +361,22 @@ public final class UUIDs {
     // Version 3 — MD5 name-based
     // ========================================================================
 
+    /// Creates a version-3 UUID from a 16-byte MD5 digest.
+    ///
+    /// The version and variant bits are stamped onto the first 16 bytes of the
+    /// digest as specified by RFC 9562 § 5.3.
+    ///
+    /// @param md5Digest the 16-byte MD5 digest
+    /// @return a version-3 UUID
+    /// @throws IllegalArgumentException if `md5Digest` is not exactly 16 bytes long
+    @Contract(pure = true)
+    public static UUID v3(byte[] md5Digest) {
+        if (md5Digest.length != 16) {
+            throw new IllegalArgumentException("MD5 digest must be 16 bytes");
+        }
+        return uuidFromHash(md5Digest, 3);
+    }
+
     /// Creates a version-3 (MD5) name-based UUID from a string name.
     ///
     /// The name is encoded as UTF-8 before hashing. If `namespace` is
@@ -371,8 +387,8 @@ public final class UUIDs {
     /// @param name      the name to hash
     /// @return a version-3 UUID
     @Contract(pure = true)
-    public static UUID v3(@Nullable UUID namespace, String name) {
-        return v3(namespace, name.getBytes(StandardCharsets.UTF_8));
+    public static UUID generateV3(@Nullable UUID namespace, String name) {
+        return generateV3(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
     /// Creates a version-3 (MD5) name-based UUID from a byte-array name.
@@ -384,7 +400,7 @@ public final class UUIDs {
     /// @param name      the name bytes to hash
     /// @return a version-3 UUID
     @Contract(pure = true)
-    public static UUID v3(@Nullable UUID namespace, byte[] name) {
+    public static UUID generateV3(@Nullable UUID namespace, byte[] name) {
         return nameBasedUUID(name, namespace, "MD5", 3);
     }
 
@@ -397,8 +413,8 @@ public final class UUIDs {
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the buffer whose remaining bytes are hashed
     /// @return a version-3 UUID
-    @Contract(pure = true)
-    public static UUID v3(@Nullable UUID namespace, ByteBuffer name) {
+    @Contract(mutates = "param2")
+    public static UUID generateV3(@Nullable UUID namespace, ByteBuffer name) {
         return nameBasedUUID(name, namespace, "MD5", 3);
     }
 
@@ -439,6 +455,22 @@ public final class UUIDs {
     // Version 5 — SHA-1 name-based
     // ========================================================================
 
+    /// Creates a version-5 UUID from a 20-byte SHA-1 digest.
+    ///
+    /// The version and variant bits are stamped onto the first 16 bytes of the
+    /// digest as specified by RFC 9562 § 5.5.
+    ///
+    /// @param sha1Digest the 20-byte SHA-1 digest
+    /// @return a version-5 UUID
+    /// @throws IllegalArgumentException if `sha1Digest` is not exactly 20 bytes long
+    @Contract(pure = true)
+    public static UUID v5(byte[] sha1Digest) {
+        if (sha1Digest.length != 20) {
+            throw new IllegalArgumentException("SHA-1 digest must be 20 bytes");
+        }
+        return uuidFromHash(sha1Digest, 5);
+    }
+
     /// Creates a version-5 (SHA-1) name-based UUID from a string name.
     ///
     /// The name is encoded as UTF-8 before hashing. If `namespace` is
@@ -449,8 +481,8 @@ public final class UUIDs {
     /// @param name      the name to hash
     /// @return a version-5 UUID
     @Contract(pure = true)
-    public static UUID v5(@Nullable UUID namespace, String name) {
-        return v5(namespace, name.getBytes(StandardCharsets.UTF_8));
+    public static UUID generateV5(@Nullable UUID namespace, String name) {
+        return generateV5(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
     /// Creates a version-5 (SHA-1) name-based UUID from a byte-array name.
@@ -462,7 +494,7 @@ public final class UUIDs {
     /// @param name      the name bytes to hash
     /// @return a version-5 UUID
     @Contract(pure = true)
-    public static UUID v5(@Nullable UUID namespace, byte[] name) {
+    public static UUID generateV5(@Nullable UUID namespace, byte[] name) {
         return nameBasedUUID(name, namespace, "SHA-1", 5);
     }
 
@@ -476,7 +508,7 @@ public final class UUIDs {
     /// @param name      the buffer whose remaining bytes are hashed
     /// @return a version-5 UUID
     @Contract(mutates = "param2")
-    public static UUID v5(@Nullable UUID namespace, ByteBuffer name) {
+    public static UUID generateV5(@Nullable UUID namespace, ByteBuffer name) {
         return nameBasedUUID(name, namespace, "SHA-1", 5);
     }
 
