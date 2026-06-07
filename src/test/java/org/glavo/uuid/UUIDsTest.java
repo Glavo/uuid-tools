@@ -66,6 +66,26 @@ class UUIDsTest {
         assertEquals(2, UUIDs.DCE_DOMAIN_ORG);
     }
 
+    @Test
+    void defaultRandomSourceProducesValidUuids() {
+        UUID v1 = UUIDs.generateV1();
+        UUID v2 = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501);
+        UUID v4 = UUIDs.generateV4();
+        UUID v6 = UUIDs.generateV6();
+        UUID v7 = UUIDs.generateV7();
+
+        assertEquals(1, v1.version());
+        assertEquals(2, v1.variant());
+        assertEquals(2, v2.version());
+        assertEquals(2, v2.variant());
+        assertEquals(4, v4.version());
+        assertEquals(2, v4.variant());
+        assertEquals(6, v6.version());
+        assertEquals(2, v6.variant());
+        assertEquals(7, v7.version());
+        assertEquals(2, v7.variant());
+    }
+
     // ---- Parsing ----
 
     @Test

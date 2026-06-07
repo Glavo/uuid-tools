@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.random.RandomGenerator;
 
 /// Utility methods for [UUID]: creation, parsing, formatting, and comparison.
@@ -49,6 +50,15 @@ import java.util.random.RandomGenerator;
 ///   [2](#uuid-version-2), [3](#uuid-version-3), and [6](#uuid-version-6)
 ///   exist for compatibility with older systems. Prefer version 7 over
 ///   versions 1 and 6 for new designs, and version 5 over version 3.
+///
+/// <h2 id="default-random-source">Default random source</h2>
+///
+/// Default generation methods use a shared lightweight pseudorandom source
+/// seeded from [SecureRandom] during first use. It is intended for ordinary
+/// UUID generation where throughput and small retained state matter. For
+/// security tokens, credentials, keys, or values that require cryptographic
+/// random guarantees, pass a [SecureRandom] to the overload that accepts a
+/// [RandomGenerator].
 ///
 /// <h2 id="uuid-versions">UUID versions</h2>
 ///
@@ -615,11 +625,11 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 1);
     }
 
-    /// Generates a version-1 UUID from the system clock and default [SecureRandom].
+    /// Generates a version-1 UUID from the system clock and default random source.
     ///
     /// @return a version-1 UUID
     public static UUID generateV1() {
-        return generateV1(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
+        return generateV1(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-1 UUID from the given time source and random generator.
@@ -680,14 +690,13 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 2);
     }
 
-    /// Generates a version-2 UUID using the system clock and the default
-    /// [SecureRandom].
+    /// Generates a version-2 UUID using the system clock and default random source.
     ///
     /// @param localDomain     the DCE local domain
     /// @param localIdentifier the local identifier for that domain
     /// @return a freshly generated version-2 UUID
     public static UUID generateV2(int localDomain, long localIdentifier) {
-        return generateV2(localDomain, localIdentifier, InstantSource.system(), RandomGeneratorHolder.INSTANCE);
+        return generateV2(localDomain, localIdentifier, InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-2 UUID using the given time source and random
@@ -768,11 +777,11 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 4);
     }
 
-    /// Generates a version-4 UUID using the default [SecureRandom].
+    /// Generates a version-4 UUID using the default random source.
     ///
     /// @return a freshly generated version-4 UUID
     public static UUID generateV4() {
-        return generateV4(RandomGeneratorHolder.INSTANCE);
+        return generateV4(DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-4 UUID using the given random generator.
@@ -863,11 +872,11 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 6);
     }
 
-    /// Generates a version-6 UUID from the system clock and default [SecureRandom].
+    /// Generates a version-6 UUID from the system clock and default random source.
     ///
     /// @return a version-6 UUID
     public static UUID generateV6() {
-        return generateV6(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
+        return generateV6(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-6 UUID from the given time source and random generator.
@@ -949,11 +958,11 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 7);
     }
 
-    /// Generates a version-7 UUID from the system clock and default [SecureRandom].
+    /// Generates a version-7 UUID from the system clock and default random source.
     ///
     /// @return a version-7 UUID
     public static UUID generateV7() {
-        return generateV7(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
+        return generateV7(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-7 UUID from the given time source and random generator.
@@ -1072,9 +1081,28 @@ public final class UUIDs {
     private static final byte[] BASE62_CHARS =
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
 
-    /// Lazy holder for the default [SecureRandom] instance.
-    private static final class RandomGeneratorHolder {
-        static final SecureRandom INSTANCE = new SecureRandom();
+    /// Shared lightweight generator used by default UUID generation methods.
+    ///
+    /// @param key0    First SipHash key half.
+    /// @param key1    Second SipHash key half.
+    /// @param counter Monotonic input block for SipHash.
+    private record DefaultRandomGenerator(long key0, long key1, AtomicLong counter) implements RandomGenerator {
+        /// The default random source instance.
+        static final RandomGenerator INSTANCE;
+
+        static {
+            SecureRandom seedSource = new SecureRandom();
+            INSTANCE = new DefaultRandomGenerator(
+                    seedSource.nextLong(),
+                    seedSource.nextLong(),
+                    new AtomicLong(seedSource.nextLong()));
+        }
+
+        /// Returns the next 64 pseudorandom bits.
+        @Override
+        public long nextLong() {
+            return sipHash24(key0, key1, counter.getAndIncrement());
+        }
     }
 
     /// Serializable [Comparator] with unsigned 128-bit ordering.
@@ -1229,6 +1257,72 @@ public final class UUIDs {
     /// Generates a random 48-bit node ID with the multicast bit set.
     private static long randomNode(RandomGenerator randomGenerator) {
         return (randomGenerator.nextLong() & NODE_MASK) | RANDOM_NODE_MULTICAST_MASK;
+    }
+
+    /// Computes SipHash-2-4 for a single 8-byte message block.
+    private static long sipHash24(long key0, long key1, long message) {
+        long v0 = 0x736f_6d65_7073_6575L ^ key0;
+        long v1 = 0x646f_7261_6e64_6f6dL ^ key1;
+        long v2 = 0x6c79_6765_6e65_7261L ^ key0;
+        long v3 = 0x7465_6462_7974_6573L ^ key1;
+
+        v3 ^= message;
+        for (int i = 0; i < 2; i++) {
+            v0 += v1;
+            v1 = Long.rotateLeft(v1, 13);
+            v1 ^= v0;
+            v0 = Long.rotateLeft(v0, 32);
+            v2 += v3;
+            v3 = Long.rotateLeft(v3, 16);
+            v3 ^= v2;
+            v0 += v3;
+            v3 = Long.rotateLeft(v3, 21);
+            v3 ^= v0;
+            v2 += v1;
+            v1 = Long.rotateLeft(v1, 17);
+            v1 ^= v2;
+            v2 = Long.rotateLeft(v2, 32);
+        }
+        v0 ^= message;
+
+        long finalBlock = 8L << 56;
+        v3 ^= finalBlock;
+        for (int i = 0; i < 2; i++) {
+            v0 += v1;
+            v1 = Long.rotateLeft(v1, 13);
+            v1 ^= v0;
+            v0 = Long.rotateLeft(v0, 32);
+            v2 += v3;
+            v3 = Long.rotateLeft(v3, 16);
+            v3 ^= v2;
+            v0 += v3;
+            v3 = Long.rotateLeft(v3, 21);
+            v3 ^= v0;
+            v2 += v1;
+            v1 = Long.rotateLeft(v1, 17);
+            v1 ^= v2;
+            v2 = Long.rotateLeft(v2, 32);
+        }
+        v0 ^= finalBlock;
+
+        v2 ^= 0xffL;
+        for (int i = 0; i < 4; i++) {
+            v0 += v1;
+            v1 = Long.rotateLeft(v1, 13);
+            v1 ^= v0;
+            v0 = Long.rotateLeft(v0, 32);
+            v2 += v3;
+            v3 = Long.rotateLeft(v3, 16);
+            v3 ^= v2;
+            v0 += v3;
+            v3 = Long.rotateLeft(v3, 21);
+            v3 ^= v0;
+            v2 += v1;
+            v1 = Long.rotateLeft(v1, 17);
+            v1 ^= v2;
+            v2 = Long.rotateLeft(v2, 32);
+        }
+        return v0 ^ v1 ^ v2 ^ v3;
     }
 
     /// Computes a name-based UUID (version 3 or 5) from a byte-array name.
