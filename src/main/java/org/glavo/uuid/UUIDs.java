@@ -99,6 +99,7 @@ public final class UUIDs {
     /// @param value the string to parse
     /// @return the parsed UUID
     /// @throws IllegalArgumentException if the string is not a valid UUID in any recognized format
+    ///                                  or if a Base62 value is outside the UUID range
     @Contract(pure = true)
     public static UUID parse(String value) {
         int length = value.length(); // implicit null check
@@ -165,8 +166,8 @@ public final class UUIDs {
     /// @return the compact hex string
     @Contract(pure = true)
     public static String toCompactString(UUID uuid) {
-        return HexFormat.of().toHexDigits(uuid.getMostSignificantBits())
-                + HexFormat.of().toHexDigits(uuid.getLeastSignificantBits());
+        return HEX_FORMAT.toHexDigits(uuid.getMostSignificantBits())
+                + HEX_FORMAT.toHexDigits(uuid.getLeastSignificantBits());
     }
 
     /// Returns the URN representation of the UUID as defined by RFC 9562 § 3.
@@ -192,21 +193,32 @@ public final class UUIDs {
     /// @return the 22-character Base62 string
     @Contract(pure = true)
     public static String toBase62String(UUID uuid) {
-        // Build unsigned 128-bit value
-        byte[] bytes = new byte[17];
-        long msb = uuid.getMostSignificantBits();
-        long lsb = uuid.getLeastSignificantBits();
-        for (int i = 0; i < 8; i++) {
-            bytes[i + 1] = (byte) (msb >>> (56 - i * 8));
-            bytes[i + 9] = (byte) (lsb >>> (56 - i * 8));
-        }
-        BigInteger value = new BigInteger(bytes);
-        BigInteger base = BigInteger.valueOf(62);
+        long mostSigBits = uuid.getMostSignificantBits();
+        long leastSigBits = uuid.getLeastSignificantBits();
+        long word0 = mostSigBits >>> 32;
+        long word1 = mostSigBits & UINT_MASK;
+        long word2 = leastSigBits >>> 32;
+        long word3 = leastSigBits & UINT_MASK;
         char[] buf = new char[22];
+        // Divide the unsigned 128-bit value by 62 through four 32-bit limbs.
         for (int i = 21; i >= 0; i--) {
-            BigInteger[] divRem = value.divideAndRemainder(base);
-            buf[i] = BASE62_CHARS[divRem[1].intValue()];
-            value = divRem[0];
+            long remainder = 0L;
+
+            long dividend = word0;
+            word0 = dividend / 62L;
+            remainder = dividend % 62L;
+
+            dividend = (remainder << 32) | word1;
+            word1 = dividend / 62L;
+            remainder = dividend % 62L;
+
+            dividend = (remainder << 32) | word2;
+            word2 = dividend / 62L;
+            remainder = dividend % 62L;
+
+            dividend = (remainder << 32) | word3;
+            word3 = dividend / 62L;
+            buf[i] = BASE62_CHARS[(int) (dividend % 62L)];
         }
         return new String(buf);
     }
@@ -527,6 +539,12 @@ public final class UUIDs {
     /// 1582-10-15T00:00:00Z and 1970-01-01T00:00:00Z.
     private static final long GREGORIAN_OFFSET = 0x01B2_1DD2_1381_4000L;
 
+    /// A mask for reading an `int`-sized limb as an unsigned 32-bit value.
+    private static final long UINT_MASK = 0xFFFF_FFFFL;
+
+    /// A reusable lowercase hexadecimal formatter.
+    private static final HexFormat HEX_FORMAT = HexFormat.of();
+
     /// The Base62 character set: `0-9A-Za-z`.
     private static final char[] BASE62_CHARS =
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
@@ -589,19 +607,39 @@ public final class UUIDs {
 
     /// Parses a 22-character Base62 string into a UUID.
     private static UUID parseBase62(String value) {
-        BigInteger result = BigInteger.ZERO;
-        BigInteger base = BigInteger.valueOf(62);
+        long word0 = 0L;
+        long word1 = 0L;
+        long word2 = 0L;
+        long word3 = 0L;
         for (int i = 0; i < 22; i++) {
             int digit = base62Digit(value.charAt(i));
             if (digit < 0) {
                 throw new IllegalArgumentException("Invalid UUID string: " + value);
             }
-            result = result.multiply(base).add(BigInteger.valueOf(digit));
+
+            // Multiply the unsigned 128-bit accumulator by 62 and add the digit.
+            long product = word3 * 62L + digit;
+            word3 = product & UINT_MASK;
+            long carry = product >>> 32;
+
+            product = word2 * 62L + carry;
+            word2 = product & UINT_MASK;
+            carry = product >>> 32;
+
+            product = word1 * 62L + carry;
+            word1 = product & UINT_MASK;
+            carry = product >>> 32;
+
+            product = word0 * 62L + carry;
+            word0 = product & UINT_MASK;
+            carry = product >>> 32;
+            if (carry != 0L) {
+                throw new IllegalArgumentException("Invalid UUID string: " + value);
+            }
         }
-        // Extract most/least significant 64 bits from the 128-bit value
-        long lsb = result.longValue();
-        long msb = result.shiftRight(64).longValue();
-        return new UUID(msb, lsb);
+        long mostSigBits = (word0 << 32) | word1;
+        long leastSigBits = (word2 << 32) | word3;
+        return new UUID(mostSigBits, leastSigBits);
     }
 
     /// Returns the Base62 digit value for a character, or -1 if invalid.

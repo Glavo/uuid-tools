@@ -122,7 +122,13 @@ class UUIDsTest {
     @Test
     void parseBase62Max() {
         String base62Max = UUIDs.toBase62String(UUIDs.MAX);
+        assertEquals("7n42DGM5Tflk9n8mt7Fhc7", base62Max);
         assertEquals(UUIDs.MAX, UUIDs.parse(base62Max));
+    }
+
+    @Test
+    void parseBase62RejectsOverflow() {
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("zzzzzzzzzzzzzzzzzzzzzz"));
     }
 
     @Test
