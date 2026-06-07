@@ -744,8 +744,11 @@ public final class UUIDs {
     /// @return a version-7 UUID
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
         Instant instant = instantSource.instant();
+        int nanoOfMilli = instant.getNano() % NANOS_PER_MILLI;
+        int subMillisecondFraction = (int) (((long) nanoOfMilli << V7_SUB_MILLI_FRACTION_BITS)
+                / NANOS_PER_MILLI);
         long randomBits = randomGenerator.nextLong();
-        int randA = (v7SubMillisecondFraction(instant) << V7_RANDOM_A_RANDOM_BITS)
+        int randA = (subMillisecondFraction << V7_RANDOM_A_RANDOM_BITS)
                 | (int) (randomBits >>> (Long.SIZE - V7_RANDOM_A_RANDOM_BITS));
         return v7(instant.toEpochMilli(), randA, randomBits);
     }
@@ -1034,12 +1037,6 @@ public final class UUIDs {
         long seconds = Math.floorDiv(unixNanos100, 10_000_000L);
         long nanoAdjustment = Math.floorMod(unixNanos100, 10_000_000L) * 100L;
         return Instant.ofEpochSecond(seconds, nanoAdjustment);
-    }
-
-    /// Converts the sub-millisecond part of an instant to a 10-bit fraction.
-    private static int v7SubMillisecondFraction(Instant instant) {
-        int nanoOfMilli = instant.getNano() % NANOS_PER_MILLI;
-        return (int) (((long) nanoOfMilli << V7_SUB_MILLI_FRACTION_BITS) / NANOS_PER_MILLI);
     }
 
     /// Generates a random 14-bit clock sequence.
