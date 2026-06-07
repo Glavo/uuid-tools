@@ -451,6 +451,33 @@ class UUIDsTest {
         assertEquals(2, result.variant());
     }
 
+    @Test
+    void generateV7UsesSingleRandomLong() {
+        long randomBits = 0xFEDC_BA98_7654_3210L;
+        Random random = new Random() {
+            private boolean used;
+
+            @Override
+            public long nextLong() {
+                assertFalse(used);
+                used = true;
+                return randomBits;
+            }
+
+            @Override
+            public int nextInt() {
+                fail("generateV7 must not call nextInt()");
+                return 0;
+            }
+        };
+
+        UUID result = UUIDs.generateV7(InstantSource.fixed(Instant.EPOCH), random);
+        assertEquals((int) (randomBits >>> 52) & 0x0FFF,
+                (int) (result.getMostSignificantBits() & 0x0FFFL));
+        assertEquals(randomBits & 0x3FFF_FFFF_FFFF_FFFFL,
+                result.getLeastSignificantBits() & 0x3FFF_FFFF_FFFF_FFFFL);
+    }
+
     // ---- Version 8 (custom) ----
 
     @Test

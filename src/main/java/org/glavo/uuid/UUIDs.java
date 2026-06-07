@@ -739,14 +739,16 @@ public final class UUIDs {
 
     /// Generates a version-7 UUID from the given time source and random generator.
     ///
+    /// This method draws one 64-bit value from `randomGenerator` and expands it
+    /// across the 12-bit `rand_a` and 62-bit `rand_b` fields.
+    ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
     /// @return a version-7 UUID
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
         long milli = instantSource.millis();
-        int randA = randomGenerator.nextInt() & V7_RANDOM_A_MASK;
-        long randB = randomGenerator.nextLong() & V7_RANDOM_B_MASK;
-        return v7(milli, randA, randB);
+        long randomBits = randomGenerator.nextLong();
+        return v7(milli, (int) (randomBits >>> 52), randomBits);
     }
 
     // ========================================================================
