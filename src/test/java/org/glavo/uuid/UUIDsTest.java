@@ -602,12 +602,28 @@ class UUIDsTest {
     // ---- Field accessors ----
 
     @Test
-    void getGregorianTimestampFromV1V2AndV6() {
+    void getGregorianTimestampFromV1V2V6AndV7() {
         long timestamp = 0x01B2_1DD2_1381_4000L;
+        long epochMillis = 1_718_000_000_000L;
         assertEquals(timestamp, UUIDs.getGregorianTimestamp(UUIDs.v1(timestamp, 0, 0)));
         assertEquals(0x01B2_1DD2_0000_0000L,
                 UUIDs.getGregorianTimestamp(UUIDs.v2(timestamp, UUIDs.DCE_DOMAIN_PERSON, 501, 0, 0)));
         assertEquals(timestamp, UUIDs.getGregorianTimestamp(UUIDs.v6(timestamp, 0, 0)));
+        assertEquals(timestamp + epochMillis * 10_000L,
+                UUIDs.getGregorianTimestamp(UUIDs.v7(epochMillis, 0, 0)));
+    }
+
+    @Test
+    void getUnixTimestampMillisFromV1V2V6AndV7() {
+        long offset = 0x01B2_1DD2_1381_4000L;
+        long epochMillis = 12_345_678L;
+        long timestamp = offset + epochMillis * 10_000L + 9_999L;
+        long v2Timestamp = 0x01B2_1DD2_0000_0000L;
+        assertEquals(epochMillis, UUIDs.getUnixTimestampMillis(UUIDs.v1(timestamp, 0, 0)));
+        assertEquals(Math.floorDiv(v2Timestamp - offset, 10_000L),
+                UUIDs.getUnixTimestampMillis(UUIDs.v2(offset, UUIDs.DCE_DOMAIN_PERSON, 501, 0, 0)));
+        assertEquals(epochMillis, UUIDs.getUnixTimestampMillis(UUIDs.v6(timestamp, 0, 0)));
+        assertEquals(epochMillis, UUIDs.getUnixTimestampMillis(UUIDs.v7(epochMillis, 0, 0)));
     }
 
     @Test

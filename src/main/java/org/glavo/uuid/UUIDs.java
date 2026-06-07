@@ -278,15 +278,17 @@ public final class UUIDs {
         };
     }
 
-    /// Extracts the Gregorian 100-nanosecond timestamp from a version 1, 2, or 6 UUID.
+    /// Extracts the Gregorian 100-nanosecond timestamp from a version 1, 2, 6, or 7 UUID.
     ///
     /// For version 2 UUIDs, the low 32 timestamp bits are not available because
     /// they are replaced by the local identifier, so this method returns the
-    /// lower-bound timestamp with those bits set to zero.
+    /// lower-bound timestamp with those bits set to zero. For version 7 UUIDs,
+    /// the encoded Unix millisecond timestamp is converted to Gregorian
+    /// 100-nanosecond units with no sub-millisecond precision.
     ///
     /// @param uuid the UUID to extract the timestamp from
     /// @return the Gregorian timestamp
-    /// @throws IllegalArgumentException if `uuid` is not a version 1, 2, or 6 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 1, 2, 6, or 7 UUID
     @Contract(pure = true)
     public static long getGregorianTimestamp(UUID uuid) {
         int version = uuid.version();
@@ -294,20 +296,35 @@ public final class UUIDs {
             case 1 -> getV1Timestamp(uuid);
             case 2 -> getV2Timestamp(uuid);
             case 6 -> getV6Timestamp(uuid);
+            case 7 -> {
+                long unixMillis = uuid.getMostSignificantBits() >>> 16;
+                yield GREGORIAN_OFFSET + unixMillis * 10_000L;
+            }
             default -> throw new IllegalArgumentException("UUID version " + version
                     + " does not contain a Gregorian timestamp");
         };
     }
 
-    /// Extracts the Unix epoch millisecond timestamp from a version 7 UUID.
+    /// Extracts the Unix epoch millisecond timestamp from a version 1, 2, 6, or 7 UUID.
+    ///
+    /// For version 2 UUIDs, the low 32 Gregorian timestamp bits are not
+    /// available because they are replaced by the local identifier, so this
+    /// method returns the Unix millisecond value of the lower-bound timestamp.
     ///
     /// @param uuid the UUID to extract the timestamp from
     /// @return the Unix epoch millisecond timestamp
-    /// @throws IllegalArgumentException if `uuid` is not a version 7 UUID
+    /// @throws IllegalArgumentException if `uuid` is not a version 1, 2, 6, or 7 UUID
     @Contract(pure = true)
     public static long getUnixTimestampMillis(UUID uuid) {
-        requireVersion(uuid, 7);
-        return uuid.getMostSignificantBits() >>> 16;
+        int version = uuid.version();
+        return switch (version) {
+            case 1 -> unixTimestampMillisFromGregorianTimestamp(getV1Timestamp(uuid));
+            case 2 -> unixTimestampMillisFromGregorianTimestamp(getV2Timestamp(uuid));
+            case 6 -> unixTimestampMillisFromGregorianTimestamp(getV6Timestamp(uuid));
+            case 7 -> uuid.getMostSignificantBits() >>> 16;
+            default -> throw new IllegalArgumentException("UUID version " + version
+                    + " does not contain a timestamp");
+        };
     }
 
     /// Extracts the clock sequence from a version 1, 2, or 6 UUID.
@@ -1170,6 +1187,11 @@ public final class UUIDs {
         long seconds = Math.floorDiv(unixNanos100, 10_000_000L);
         long nanoAdjustment = Math.floorMod(unixNanos100, 10_000_000L) * 100L;
         return Instant.ofEpochSecond(seconds, nanoAdjustment);
+    }
+
+    /// Converts a Gregorian 100-nanosecond timestamp to Unix epoch milliseconds.
+    private static long unixTimestampMillisFromGregorianTimestamp(long timestamp) {
+        return Math.floorDiv(timestamp - GREGORIAN_OFFSET, 10_000L);
     }
 
     /// Generates a random 14-bit clock sequence.
