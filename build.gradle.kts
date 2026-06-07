@@ -1,3 +1,12 @@
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpServer
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.URLDecoder
+import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+
 plugins {
     id("java-library")
     id("maven-publish")
@@ -97,6 +106,35 @@ teavm {
 val websiteOutputDir = layout.buildDirectory.dir("website")
 val teavmWasmOutputDir = layout.buildDirectory.dir("generated/teavm/wasm-gc")
 
+fun websiteContentType(fileName: String): String =
+    when (fileName.substringAfterLast('.', "").lowercase()) {
+        "html" -> "text/html; charset=utf-8"
+        "css" -> "text/css; charset=utf-8"
+        "js" -> "application/javascript; charset=utf-8"
+        "json", "map" -> "application/json; charset=utf-8"
+        "wasm" -> "application/wasm"
+        "svg" -> "image/svg+xml"
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "webp" -> "image/webp"
+        else -> "application/octet-stream"
+    }
+
+fun sendWebsiteResponse(
+    exchange: HttpExchange,
+    status: Int,
+    body: ByteArray,
+    contentType: String,
+    headOnly: Boolean,
+) {
+    exchange.responseHeaders.set("Content-Type", contentType)
+    exchange.responseHeaders.set("Cache-Control", "no-store")
+    exchange.sendResponseHeaders(status, if (headOnly) -1L else body.size.toLong())
+    if (!headOnly) {
+        exchange.responseBody.write(body)
+    }
+}
+
 tasks.register<Sync>("buildWebsite") {
     group = "website"
     description = "Builds the static demo website."
@@ -109,6 +147,92 @@ tasks.register<Sync>("buildWebsite") {
     }
 
     into(websiteOutputDir)
+}
+
+tasks.register("serveWebsite") {
+    group = "website"
+    description = "Builds and serves the demo website locally. Set -Pwebsite.port=8080 to choose a port."
+
+    dependsOn(tasks.named("buildWebsite"))
+
+    doLast {
+        val port = providers.gradleProperty("website.port").orElse("8080").get().toInt()
+        val root = websiteOutputDir.get().asFile.toPath().toAbsolutePath().normalize()
+        val executor = Executors.newCachedThreadPool()
+        val server = HttpServer.create(
+            InetSocketAddress(InetAddress.getLoopbackAddress(), port),
+            0,
+        )
+
+        server.executor = executor
+        server.createContext("/") { exchange ->
+            try {
+                val headOnly = exchange.requestMethod.equals("HEAD", ignoreCase = true)
+                if (!headOnly && !exchange.requestMethod.equals("GET", ignoreCase = true)) {
+                    exchange.responseHeaders.set("Allow", "GET, HEAD")
+                    sendWebsiteResponse(
+                        exchange,
+                        405,
+                        "Method Not Allowed".toByteArray(Charsets.UTF_8),
+                        "text/plain; charset=utf-8",
+                        false,
+                    )
+                    return@createContext
+                }
+
+                val decodedPath = URLDecoder.decode(
+                    exchange.requestURI.rawPath ?: "/",
+                    Charsets.UTF_8,
+                )
+                var file = root.resolve(decodedPath.removePrefix("/")).normalize()
+                if (!file.startsWith(root)) {
+                    sendWebsiteResponse(
+                        exchange,
+                        403,
+                        "Forbidden".toByteArray(Charsets.UTF_8),
+                        "text/plain; charset=utf-8",
+                        headOnly,
+                    )
+                    return@createContext
+                }
+
+                if (Files.isDirectory(file)) {
+                    file = file.resolve("index.html")
+                }
+
+                if (!Files.isRegularFile(file)) {
+                    sendWebsiteResponse(
+                        exchange,
+                        404,
+                        "Not Found".toByteArray(Charsets.UTF_8),
+                        "text/plain; charset=utf-8",
+                        headOnly,
+                    )
+                    return@createContext
+                }
+
+                sendWebsiteResponse(
+                    exchange,
+                    200,
+                    Files.readAllBytes(file),
+                    websiteContentType(file.fileName.toString()),
+                    headOnly,
+                )
+            } finally {
+                exchange.close()
+            }
+        }
+
+        server.start()
+        Runtime.getRuntime().addShutdownHook(Thread {
+            server.stop(0)
+            executor.shutdownNow()
+        })
+
+        println("Serving ${root.toUri()} at http://127.0.0.1:$port/")
+        println("Press Ctrl+C to stop.")
+        CountDownLatch(1).await()
+    }
 }
 
 tasks.withType<GenerateModuleMetadata> {

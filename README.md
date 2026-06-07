@@ -217,6 +217,15 @@ UUID APIs in a browser.
 The generated website is written to `build/website`. Serve that directory over
 HTTP so the browser can load the WebAssembly module.
 
+For local development, Gradle can also build and serve the website:
+
+```shell
+./gradlew -g .gradle-user-home serveWebsite
+```
+
+The server listens on `http://127.0.0.1:8080/` by default. Use
+`-Pwebsite.port=8081` to choose another port.
+
 ## License
 
 [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/)
