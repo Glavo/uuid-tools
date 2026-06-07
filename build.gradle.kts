@@ -4,6 +4,7 @@ plugins {
     id("signing")
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     id("org.glavo.load-maven-publish-properties") version "0.1.0"
+    id("org.teavm") version "0.14.0"
 }
 
 group = "org.glavo"
@@ -14,9 +15,19 @@ repositories {
     mavenCentral()
 }
 
+val mainSourceSet = sourceSets["main"]
+
+val teavmSourceSet = sourceSets.getByName("teavm").apply {
+    java.setSrcDirs(listOf("src/website/java"))
+    resources.setSrcDirs(listOf("src/website/teavm-resources"))
+
+    compileClasspath += mainSourceSet.output + mainSourceSet.compileClasspath
+    runtimeClasspath += mainSourceSet.output + mainSourceSet.runtimeClasspath
+}
+
 val benchmark by sourceSets.creating {
     java.srcDir("src/benchmark/java")
-    compileClasspath += sourceSets.main.get().output
+    compileClasspath += mainSourceSet.output
     runtimeClasspath += output + compileClasspath
 }
 
@@ -31,6 +42,12 @@ dependencies {
     add("benchmarkCompileOnly", "org.jetbrains:annotations:26.1.0")
     add("benchmarkImplementation", "org.openjdk.jmh:jmh-core:1.37")
     add("benchmarkAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
+
+    val teavmVersion = "0.14.0"
+    teavm("org.teavm:teavm-jso:$teavmVersion")
+    teavm("org.teavm:teavm-jso-impl:$teavmVersion")
+    teavm("org.teavm:teavm-classlib:$teavmVersion")
+    add(teavmSourceSet.compileOnlyConfigurationName, "org.teavm:teavm-core:$teavmVersion")
 }
 
 java {
@@ -44,6 +61,10 @@ tasks.withType<JavaCompile> {
     options.javaModuleVersion = project.version.toString()
 }
 
+tasks.named<JavaCompile>(teavmSourceSet.compileJavaTaskName) {
+    modularity.inferModulePath.set(false)
+}
+
 tasks.test {
     useJUnitPlatform()
 }
@@ -53,6 +74,41 @@ tasks.register<JavaExec>("benchmark") {
     description = "Runs the JMH benchmarks."
     mainClass.set("org.openjdk.jmh.Main")
     classpath = benchmark.runtimeClasspath
+}
+
+teavm {
+    all {
+        mainClass.set("org.glavo.uuid.website.UUIDToolsDemo")
+        outputDir.set(layout.buildDirectory.dir("generated/teavm"))
+        fastGlobalAnalysis.set(true)
+        processMemory.set(1024)
+    }
+
+    wasmGC {
+        targetFileName.set("uuid-tools-demo.wasm")
+        relativePathInOutputDir.set("wasm-gc")
+        copyRuntime.set(true)
+        obfuscated.set(false)
+        sourceMap.set(true)
+        strict.set(true)
+    }
+}
+
+val websiteOutputDir = layout.buildDirectory.dir("website")
+val teavmWasmOutputDir = layout.buildDirectory.dir("generated/teavm/wasm-gc")
+
+tasks.register<Sync>("buildWebsite") {
+    group = "website"
+    description = "Builds the static demo website."
+
+    dependsOn(tasks.named("buildWasmGC"))
+
+    from("src/website/resources")
+    from(teavmWasmOutputDir) {
+        into("wasm-gc")
+    }
+
+    into(websiteOutputDir)
 }
 
 tasks.withType<GenerateModuleMetadata> {

@@ -21,7 +21,6 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.InstantSource;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -462,8 +461,10 @@ public final class UUIDs {
     /// @return the compact hex string
     @Contract(pure = true)
     public static String toCompactString(UUID uuid) {
-        return HEX_FORMAT.toHexDigits(uuid.getMostSignificantBits())
-                + HEX_FORMAT.toHexDigits(uuid.getLeastSignificantBits());
+        StringBuilder out = new StringBuilder(32);
+        appendHex(out, uuid.getMostSignificantBits(), 16);
+        appendHex(out, uuid.getLeastSignificantBits(), 16);
+        return out.toString();
     }
 
     /// Formats the UUID as a URN string per RFC 9562 § 3.
@@ -529,8 +530,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static String toOIDString(UUID uuid) {
         byte[] bytes = new byte[17]; // 1 extra byte for unsigned interpretation
-        BYTE_ARRAY_LONG_VIEW.set(bytes, 1, uuid.getMostSignificantBits());
-        BYTE_ARRAY_LONG_VIEW.set(bytes, 9, uuid.getLeastSignificantBits());
+        writeLongBigEndian(bytes, 1, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, 9, uuid.getLeastSignificantBits());
         return "2.25." + new BigInteger(bytes);
     }
 
@@ -563,8 +564,8 @@ public final class UUIDs {
     @Contract(mutates = "param2")
     public static void toBytes(UUID uuid, byte[] bytes, int offset) {
         Objects.checkFromIndexSize(offset, 16, bytes.length);
-        BYTE_ARRAY_LONG_VIEW.set(bytes, offset, uuid.getMostSignificantBits());
-        BYTE_ARRAY_LONG_VIEW.set(bytes, offset + 8, uuid.getLeastSignificantBits());
+        ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.set(bytes, offset, uuid.getMostSignificantBits());
+        ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.set(bytes, offset + 8, uuid.getLeastSignificantBits());
     }
 
     /// Creates a UUID from a 16-byte big-endian representation.
@@ -590,8 +591,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static UUID fromBytes(byte[] bytes, int offset) {
         Objects.checkFromIndexSize(offset, 16, bytes.length);
-        long msb = (long) BYTE_ARRAY_LONG_VIEW.get(bytes, offset);
-        long lsb = (long) BYTE_ARRAY_LONG_VIEW.get(bytes, offset + 8);
+        long msb = (long) ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.get(bytes, offset);
+        long lsb = (long) ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.get(bytes, offset + 8);
         return new UUID(msb, lsb);
     }
 
@@ -1188,13 +1189,6 @@ public final class UUIDs {
     /// A mask for reading an `int`-sized limb as an unsigned 32-bit value.
     private static final long UINT_MASK = 0xFFFF_FFFFL;
 
-    /// A reusable lowercase hexadecimal formatter.
-    private static final HexFormat HEX_FORMAT = HexFormat.of();
-
-    /// Big-endian byte-array view used to read and write 64-bit UUID halves.
-    private static final VarHandle BYTE_ARRAY_LONG_VIEW =
-            MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
-
     /// The Base62 character set: `0-9A-Za-z`.
     private static final byte[] BASE62_CHARS =
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
@@ -1465,7 +1459,25 @@ public final class UUIDs {
 
     /// Feeds a UUID's 16 big-endian bytes into a digest.
     private static void feedUUID(MessageDigest digest, UUID uuid) {
-        digest.update(toBytes(uuid));
+        byte[] bytes = new byte[16];
+        writeLongBigEndian(bytes, 0, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, 8, uuid.getLeastSignificantBits());
+        digest.update(bytes);
+    }
+
+    /// Writes a 64-bit value in big-endian byte order.
+    private static void writeLongBigEndian(byte[] bytes, int offset, long value) {
+        for (int i = 7; i >= 0; i--) {
+            bytes[offset + i] = (byte) value;
+            value >>>= Byte.SIZE;
+        }
+    }
+
+    /// Appends the low bits of a value as fixed-width lowercase hexadecimal.
+    private static void appendHex(StringBuilder out, long value, int digits) {
+        for (int shift = (digits - 1) * 4; shift >= 0; shift -= 4) {
+            out.append(Character.forDigit((int) (value >>> shift) & 0xF, 16));
+        }
     }
 
     /// Constructs a UUID from the first 16 bytes of a hash digest.
@@ -1497,6 +1509,18 @@ public final class UUIDs {
             return MessageDigest.getInstance(algorithm);
         } catch (NoSuchAlgorithmException e) {
             throw new InternalError("Missing algorithm: " + algorithm, e);
+        }
+    }
+
+    /// Lazy holder for the JVM byte-array view used by public byte-array APIs.
+    @NotNullByDefault
+    private static final class ByteArrayLongViewHolder {
+        /// Big-endian byte-array view used to read and write 64-bit UUID halves.
+        static final VarHandle BYTE_ARRAY_LONG_VIEW =
+                MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
+
+        /// Creates no instances.
+        private ByteArrayLongViewHolder() {
         }
     }
 

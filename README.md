@@ -205,6 +205,18 @@ fields, making it easy to implement custom UUID generation strategies.
 
 - Java 17 or later
 
+## Demo Website
+
+The repository includes a static TeaVM/Wasm GC demo website for trying the core
+UUID APIs in a browser.
+
+```shell
+./gradlew -g .gradle-user-home buildWebsite
+```
+
+The generated website is written to `build/website`. Serve that directory over
+HTTP so the browser can load the WebAssembly module.
+
 ## License
 
 [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/)
