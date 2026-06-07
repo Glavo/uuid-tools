@@ -5,7 +5,8 @@ comparing UUIDs.
 
 ## Add to Your Project
 
-TODO
+Release artifacts have not been published yet. Until the first release is
+available, build the project from source and use the local artifact.
 
 ## Features
 
@@ -28,34 +29,32 @@ If you want to embed timestamps in UUIDs, prefer version 7. It contains a
 
 ```java
 // Generate a version-7 UUID from the current time and default RNG
-UUID _ = UUIDs.generateV7();
+UUID current = UUIDs.generateV7();
 
 // Or with a specific InstantSource and RandomGenerator
-UUID _ = UUIDs.generateV7(Clock.systemUTC(), new Random());
+UUID customSource = UUIDs.generateV7(InstantSource.system(), new Random());
 
 // Or deterministically from a specific Instant, rand_a, and rand_b
-UUID _ = UUIDs.v7(Instant.now(), 0x123, 114514L);
+UUID deterministic = UUIDs.v7(Instant.now(), 0x123, 114514L);
 ```
 
 UUID v1/v2/v6 are also time-based and can be constructed similarly.
 
 ```java
 // Generate version-1/6 UUIDs from the current time and default RNG
-UUID _ = UUIDs.generateV1();
-UUID _ = UUIDs.generateV6();
+UUID currentV1 = UUIDs.generateV1();
+UUID currentV6 = UUIDs.generateV6();
 
 // Or with a specific InstantSource and RandomGenerator
-UUID _ = UUIDs.generateV1(Clock.systemUTC(), new Random());
-UUID _ = UUIDs.generateV6(Clock.systemUTC(), new Random());
+UUID customSourceV1 = UUIDs.generateV1(InstantSource.system(), new Random());
+UUID customSourceV6 = UUIDs.generateV6(InstantSource.system(), new Random());
 
-// Or deterministically from a specific Instant and node value
-UUID _ = UUIDs.v1(Instant.now(), 114514L);
-UUID _ = UUIDs.v6(Instant.now(), 114514L);
+// Or deterministically from a specific Instant, clock sequence, and node
+UUID deterministicV1 = UUIDs.v1(Instant.now(), 0x1234, 0x0123_4567_89ABL);
+UUID deterministicV6 = UUIDs.v6(Instant.now(), 0x1234, 0x0123_4567_89ABL);
 
-// V1/v6 traditionally embed a MAC address; you can pass one directly
-NetworkInterface networkInterface = java.net.NetworkInterface.networkInterfaces().findFirst().get();
-UUID _ = UUIDs.v1(Instant.now(), networkInterface.getHardwareAddress());
-UUID _ = UUIDs.v6(Instant.now(), networkInterface.getHardwareAddress());
+// Version 2 embeds a local DCE domain and local identifier
+UUID v2 = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501);
 ```
 
 However versions 1/2/6 each have their own drawbacks, so prefer version 7
@@ -68,13 +67,13 @@ and variant fields; the remaining 122 bits are random.
 
 ```java
 // Generate a version-4 UUID from the default RNG
-UUID _ = UUIDs.generateV4();
+UUID random = UUIDs.generateV4();
 
 // With a specific RandomGenerator
-UUID _ = UUIDs.generateV4(new Random());
+UUID fromRandomGenerator = UUIDs.generateV4(new Random());
 
 // Deterministically from specific random bits
-UUID _ = UUIDs.v4(114515L, 1919810L);
+UUID fromBits = UUIDs.v4(114515L, 1919810L);
 ```
 
 #### Name-based UUIDs (versions 3/5)
@@ -90,13 +89,13 @@ weaknesses.
 
 ```java
 // Generate version-3/5 UUIDs from a namespace and name
-UUID _ = UUIDs.generateV3(UUIDs.NAMESPACE_DNS, "glavo.site");
-UUID _ = UUIDs.generateV5(UUIDs.NAMESPACE_DNS, "glavo.site");
+UUID dnsV3 = UUIDs.generateV3(UUIDs.NAMESPACE_DNS, "glavo.site");
+UUID dnsV5 = UUIDs.generateV5(UUIDs.NAMESPACE_DNS, "glavo.site");
 
 // The namespace can be any UUID — use the built-in ones or your own
 UUID myNamespace = UUIDs.generateV4();
-UUID _ = UUIDs.generateV3(myNamespace, "glavo.site");
-UUID _ = UUIDs.generateV5(myNamespace, "glavo.site");
+UUID customV3 = UUIDs.generateV3(myNamespace, "glavo.site");
+UUID customV5 = UUIDs.generateV5(myNamespace, "glavo.site");
 ```
 
 #### Custom UUIDs (version 8)
@@ -106,7 +105,20 @@ are application-defined.
 
 ```java
 // Construct a version-8 UUID from raw bits
-UUID _ = UUIDs.v8(114515L, 1919810L);
+UUID uuid = UUIDs.v8(114515L, 1919810L);
+```
+
+### Random Source
+
+The default generation methods use a shared lightweight pseudorandom source
+seeded from `SecureRandom` during first use. It is designed for ordinary UUID
+generation where throughput and small retained state matter.
+
+For security tokens, credentials, keys, or values that require cryptographic
+random guarantees, pass a `SecureRandom` explicitly:
+
+```java
+UUID uuid = UUIDs.generateV4(new SecureRandom());
 ```
 
 ### Comparing UUIDs
@@ -115,9 +127,9 @@ UUID _ = UUIDs.v8(114515L, 1919810L);
 the two 64-bit halves as signed integers. This is non-standard and can produce
 unexpected behavior.
 
-uuid-tools provides a straightforward method and a `Comparator` implementation
-that use the conventional unsigned 128-bit ordering, making UUID sorting behave
-as expected.
+uuid-tools provides a straightforward method and a `Comparator` implementation.
+They compare UUIDs as unsigned 128-bit integers, which matches the ordering of
+canonical UUID strings and 16-byte big-endian UUID values.
 
 ```java
 Instant now = Instant.now();
@@ -128,7 +140,7 @@ UUID uuid2 = UUIDs.v7(now.plusSeconds(1L), 0, 0L);
 assert UUIDs.compare(uuid1, uuid2) < 0;
 
 // Use uuid-tools' Comparator instead of the default
-TreeSet<UUID> _ = new TreeSet<>(UUIDs.comparator());
+TreeSet<UUID> ordered = new TreeSet<>(UUIDs.comparator());
 ```
 
 ### String Conversion
@@ -157,9 +169,13 @@ Supported formats:
 UUIDs can be converted to and from their 16-byte big-endian representation.
 
 ```java
-byte[] _ = UUIDs.toBytes(uuid);
-UUID _ = UUIDs.fromBytes(bytes);
-UUID _ = UUIDs.fromBytes(bytes, offset);
+UUID uuid = UUIDs.generateV7();
+byte[] bytes = UUIDs.toBytes(uuid);
+UUID decoded = UUIDs.fromBytes(bytes);
+
+byte[] payload = new byte[20];
+System.arraycopy(bytes, 0, payload, 2, bytes.length);
+UUID decodedFromOffset = UUIDs.fromBytes(payload, 2);
 ```
 
 ## Comparison with UUID Creator

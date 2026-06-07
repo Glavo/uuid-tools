@@ -27,29 +27,58 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.random.RandomGenerator;
 
-/// Utility methods for [UUID]: creation, parsing, formatting, and comparison.
-/// Implements UUID versions defined by
-/// [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562) and the DCE Security
-/// version-2 layout.
+/// Lightweight UUID utilities for generating, parsing, formatting, and
+/// comparing [UUID] values.
 ///
-/// Provides constants ([#NIL], [#MAX], four namespace UUIDs), multi-format
-/// parsing, compact/URN/OID/Base62 formatting, field accessors, unsigned
-/// comparison, and the low-level helper [#newWithVersion(long, long, int)].
+/// This class is the main entry point of uuid-tools. It works directly with
+/// JDK [UUID] objects and keeps the API small: constants, versioned
+/// generation methods, deterministic field constructors, text and binary
+/// conversion, field accessors, and unsigned comparison helpers all live here.
 ///
 /// <h2 id="choosing-a-uuid-version">Choosing a UUID version</h2>
 ///
-/// * **Time-ordered** — use [version 7](#uuid-version-7). It embeds a Unix
-///   millisecond timestamp and sorts chronologically, making it the preferred
-///   choice for database keys and distributed event ordering.
-/// * **Deterministic from a name** — use [version 5](#uuid-version-5) (SHA-1).
-///   Given the same namespace and name, the UUID is always identical.
-/// * **Fully random** — use [version 4](#uuid-version-4).
-/// * **Custom layout** — use [version 8](#uuid-version-8) and manage all
-///   non-version, non-variant bits yourself.
-/// * **Legacy interoperability** — versions [1](#uuid-version-1),
-///   [2](#uuid-version-2), [3](#uuid-version-3), and [6](#uuid-version-6)
-///   exist for compatibility with older systems. Prefer version 7 over
-///   versions 1 and 6 for new designs, and version 5 over version 3.
+/// UUID versions are different layouts, not a release sequence. For most new
+/// code, choose by how the value will be used:
+///
+/// * **Sortable database keys and event IDs**: use [version 7](#uuid-version-7).
+///   It embeds a Unix millisecond timestamp and sorts chronologically.
+/// * **Opaque random identifiers**: use [version 4](#uuid-version-4).
+/// * **Deterministic identifiers from a namespace and name**: use
+///   [version 5](#uuid-version-5). The same namespace and name always produce
+///   the same UUID.
+/// * **Application-defined layouts**: use [version 8](#uuid-version-8) and
+///   manage the payload bits yourself.
+/// * **Legacy interoperability**: use versions [1](#uuid-version-1),
+///   [2](#uuid-version-2), [3](#uuid-version-3), or [6](#uuid-version-6)
+///   when an existing system requires those layouts. For new time-based UUIDs,
+///   prefer version 7 over versions 1 and 6. For new name-based UUIDs, prefer
+///   version 5 over version 3.
+///
+/// ```java
+/// UUID timeOrdered = UUIDs.generateV7();
+/// UUID random = UUIDs.generateV4();
+/// UUID named = UUIDs.generateV5(UUIDs.NAMESPACE_DNS, "example.com");
+/// ```
+///
+/// <h2 id="text-and-binary-conversion">Text and binary conversion</h2>
+///
+/// [#parse(String)] accepts unambiguous UUID text forms: standard
+/// hyphenated text, compact hexadecimal text, Windows registry text, and URN
+/// text. Compact encodings that can be confused with other formats use
+/// explicit methods, such as [#parseBase62(String)].
+///
+/// Binary conversion uses the standard 16-byte big-endian representation:
+///
+/// ```java
+/// byte[] bytes = UUIDs.toBytes(timeOrdered);
+/// UUID decoded = UUIDs.fromBytes(bytes);
+/// ```
+///
+/// <h2 id="comparison-order">Comparison order</h2>
+///
+/// [#compare(UUID, UUID)] and [#comparator()] compare UUIDs as unsigned
+/// 128-bit integers. This matches canonical UUID string order and the order
+/// of the standard 16-byte big-endian representation.
 ///
 /// <h2 id="default-random-source">Default random source</h2>
 ///
@@ -59,6 +88,12 @@ import java.util.random.RandomGenerator;
 /// security tokens, credentials, keys, or values that require cryptographic
 /// random guarantees, pass a [SecureRandom] to the overload that accepts a
 /// [RandomGenerator].
+///
+/// <h2 id="uuid-standards">UUID standards</h2>
+///
+/// uuid-tools implements UUID versions defined by
+/// [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562) and the DCE Security
+/// version-2 layout.
 ///
 /// <h2 id="uuid-versions">UUID versions</h2>
 ///
@@ -552,7 +587,8 @@ public final class UUIDs {
     /// Compares two UUIDs as unsigned 128-bit integers.
     ///
     /// Compares the most significant 64 bits first, then the least
-    /// significant 64 bits.
+    /// significant 64 bits. The resulting order is the same as canonical
+    /// UUID string order and 16-byte big-endian binary order.
     ///
     /// @param uuid1 the first UUID
     /// @param uuid2 the second UUID
@@ -565,6 +601,8 @@ public final class UUIDs {
     }
 
     /// Compares two UUIDs from raw 64-bit halves as unsigned 128-bit integers.
+    /// The resulting order is the same as canonical UUID string order and
+    /// 16-byte big-endian binary order.
     ///
     /// @param mostSigBits1  most significant 64 bits of the first UUID
     /// @param leastSigBits1 least significant 64 bits of the first UUID
@@ -584,7 +622,9 @@ public final class UUIDs {
 
     /// A serializable [Comparator] using unsigned 128-bit ordering.
     ///
-    /// Singleton, safe for concurrent use, consistent with [#compare(UUID, UUID)].
+    /// Singleton, safe for concurrent use, consistent with
+    /// [#compare(UUID, UUID)], and suitable for ordered collections such as
+    /// [java.util.TreeSet] and [java.util.TreeMap].
     ///
     /// @return the UUID comparator
     @Contract(pure = true)
@@ -960,12 +1000,22 @@ public final class UUIDs {
 
     /// Generates a version-7 UUID from the system clock and default random source.
     ///
+    /// The 48-bit timestamp comes from the current Unix epoch millisecond. The
+    /// high 10 bits of `rand_a` are filled from the sub-millisecond fraction of
+    /// the current instant, and the remaining random payload is derived from a
+    /// single 64-bit random value.
+    ///
     /// @return a version-7 UUID
     public static UUID generateV7() {
         return generateV7(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-7 UUID from the given time source and random generator.
+    ///
+    /// The 48-bit timestamp comes from [Instant#toEpochMilli()]. The high
+    /// 10 bits of `rand_a` are filled from the instant's sub-millisecond
+    /// fraction, and the remaining random payload is derived from one call to
+    /// [RandomGenerator#nextLong()].
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
