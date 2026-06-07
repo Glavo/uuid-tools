@@ -55,6 +55,13 @@ class UUIDsTest {
         assertEquals(UUID.fromString("6ba7b814-9dad-11d1-80b4-00c04fd430c8"), UUIDs.NAMESPACE_X500);
     }
 
+    @Test
+    void dceDomainConstantsMatchRegisteredValues() {
+        assertEquals(0, UUIDs.DCE_DOMAIN_PERSON);
+        assertEquals(1, UUIDs.DCE_DOMAIN_GROUP);
+        assertEquals(2, UUIDs.DCE_DOMAIN_ORG);
+    }
+
     // ---- Parsing ----
 
     @Test
@@ -223,6 +230,40 @@ class UUIDsTest {
         assertEquals(1, result.version());
         assertEquals(2, result.variant());
         assertEquals(instant, UUIDs.getInstant(result));
+        assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
+    }
+
+    // ---- Version 2 (DCE Security) ----
+
+    @Test
+    void v2FromGregorianTimestamp() {
+        UUID result = UUIDs.v2(0x01B2_1DD2_1381_4000L, UUIDs.DCE_DOMAIN_GROUP,
+                0x1234_5678L, 0x3F, 0x1234_5678_9ABCL);
+        assertEquals(2, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(UUID.fromString("12345678-1dd2-21b2-bf01-123456789abc"), result);
+    }
+
+    @Test
+    void v2FromInstant() {
+        UUID result = UUIDs.v2(Instant.EPOCH, UUIDs.DCE_DOMAIN_PERSON, 501, 0, 0);
+        assertEquals(UUID.fromString("000001f5-1dd2-21b2-8000-000000000000"), result);
+    }
+
+    @Test
+    void getInstantFromV2ReturnsLowerBoundTimestamp() {
+        UUID result = UUIDs.v2(Instant.EPOCH, UUIDs.DCE_DOMAIN_PERSON, 501, 0, 0);
+        assertEquals(Instant.parse("1969-12-31T23:59:27.276236800Z"), UUIDs.getInstant(result));
+    }
+
+    @Test
+    void generateV2ProducesValidUuid() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501, InstantSource.fixed(instant), new Random(0));
+        assertEquals(2, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(501L, result.getMostSignificantBits() >>> 32);
+        assertEquals(UUIDs.DCE_DOMAIN_PERSON, (int) ((result.getLeastSignificantBits() >>> 48) & 0xFFL));
         assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
     }
 

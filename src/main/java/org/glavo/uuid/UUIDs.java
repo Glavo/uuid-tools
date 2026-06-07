@@ -23,7 +23,9 @@ import java.util.UUID;
 import java.util.random.RandomGenerator;
 
 /// Utility methods for [UUID]: creation, parsing, formatting, and comparison.
-/// Implements [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562).
+/// Implements UUID versions defined by
+/// [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562) and the DCE Security
+/// version-2 layout.
 ///
 /// Provides constants ([#NIL], [#MAX], four namespace UUIDs), multi-format
 /// parsing, compact/URN/OID/Base62 formatting, unsigned comparison, timestamp
@@ -44,6 +46,16 @@ import java.util.random.RandomGenerator;
 /// Uses a 60-bit 100-nanosecond timestamp since the Gregorian epoch
 /// `1582-10-15T00:00:00Z`, a 14-bit clock sequence, and a 48-bit node.
 /// See [#v1(long, int, long)], [#v1(Instant, int, long)], [#generateV1()].
+///
+/// <h3 id="uuid-version-2">Version 2 — DCE Security</h3>
+///
+/// Legacy DCE Security UUIDs. Use only for interoperability with systems that
+/// require local person, group, or organization identifiers. Version 2 replaces
+/// the low 32 timestamp bits with a local identifier and replaces the low
+/// 8 clock-sequence bits with a local domain, so timestamps are approximate and
+/// only 64 clock-sequence values remain.
+/// See [#v2(long, int, long, int, long)], [#v2(Instant, int, long, int, long)],
+/// [#generateV2(int, long)].
 ///
 /// <h3 id="uuid-version-6">Version 6 — reordered time-based</h3>
 ///
@@ -98,6 +110,15 @@ public final class UUIDs {
 
     /// X.500 DN namespace UUID (`6ba7b814-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
     public static final UUID NAMESPACE_X500 = new UUID(0x6ba7b8149dad11d1L, 0x80b400c04fd430c8L);
+
+    /// DCE Security local domain for person identifiers, such as POSIX UIDs.
+    public static final int DCE_DOMAIN_PERSON = 0;
+
+    /// DCE Security local domain for group identifiers, such as POSIX GIDs.
+    public static final int DCE_DOMAIN_GROUP = 1;
+
+    /// DCE Security local domain for organization identifiers.
+    public static final int DCE_DOMAIN_ORG = 2;
 
     // ========================================================================
     // Parsing
@@ -204,7 +225,11 @@ public final class UUIDs {
     // Timestamp extraction
     // ========================================================================
 
-    /// Extracts the embedded timestamp from a version-1, -6, or -7 UUID.
+    /// Extracts the embedded timestamp from a version-1, -2, -6, or -7 UUID.
+    ///
+    /// For version-2 UUIDs, the low 32 timestamp bits are not available because
+    /// they are replaced by the local identifier, so this method returns the
+    /// lower-bound timestamp with those bits set to zero.
     ///
     /// @param uuid the UUID to extract the timestamp from
     /// @return the timestamp as an [Instant]
@@ -214,6 +239,7 @@ public final class UUIDs {
         int version = uuid.version();
         return switch (version) {
             case 1 -> instantFromGregorianTimestamp(getV1Timestamp(uuid));
+            case 2 -> instantFromGregorianTimestamp(getV2Timestamp(uuid));
             case 6 -> instantFromGregorianTimestamp(getV6Timestamp(uuid));
             case 7 -> Instant.ofEpochMilli(uuid.getMostSignificantBits() >>> 16);
             default -> throw new IllegalArgumentException("UUID version " + version + " does not contain a timestamp");
@@ -405,6 +431,79 @@ public final class UUIDs {
     /// @return a version-1 UUID
     public static UUID generateV1(InstantSource instantSource, RandomGenerator randomGenerator) {
         return v1(instantSource.instant(), randomClockSequence(randomGenerator), randomNode(randomGenerator));
+    }
+
+    // ========================================================================
+    // Version 2 — DCE Security
+    // ========================================================================
+
+    /// Creates a version-2 UUID from an [Instant], DCE local domain,
+    /// local identifier, clock sequence, and node.
+    ///
+    /// The instant is converted to a Gregorian 100-nanosecond timestamp before
+    /// delegating to [#v2(long, int, long, int, long)].
+    ///
+    /// @param instant         the timestamp instant
+    /// @param localDomain     the 8-bit DCE local domain; only the low 8 bits are encoded
+    /// @param localIdentifier the 32-bit local identifier; only the low 32 bits are encoded
+    /// @param clockSequence   the 6-bit clock sequence; only the low 6 bits are encoded
+    /// @param node            the 48-bit node value; only the low 48 bits are encoded
+    /// @return a version-2 UUID
+    @Contract(pure = true)
+    public static UUID v2(Instant instant, int localDomain, long localIdentifier, int clockSequence, long node) {
+        return v2(gregorianTimestamp(instant), localDomain, localIdentifier, clockSequence, node);
+    }
+
+    /// Creates a version-2 UUID from a Gregorian 100-nanosecond timestamp,
+    /// DCE local domain, local identifier, clock sequence, and node.
+    ///
+    /// The low 32 timestamp bits are replaced by `localIdentifier`, and the
+    /// low 8 clock-sequence bits are replaced by `localDomain`.
+    ///
+    /// @param gregorianTimestamp the timestamp; only bits 32..59 are encoded
+    /// @param localDomain        the 8-bit DCE local domain; only the low 8 bits are encoded
+    /// @param localIdentifier    the 32-bit local identifier; only the low 32 bits are encoded
+    /// @param clockSequence      the 6-bit clock sequence; only the low 6 bits are encoded
+    /// @param node               the 48-bit node value; only the low 48 bits are encoded
+    /// @return a version-2 UUID
+    @Contract(pure = true)
+    public static UUID v2(long gregorianTimestamp, int localDomain, long localIdentifier,
+                          int clockSequence, long node) {
+        long timestamp = gregorianTimestamp & GREGORIAN_TIMESTAMP_MASK;
+        long mostSigBits = ((localIdentifier & UINT_MASK) << 32)
+                | (((timestamp >>> 32) & 0xFFFFL) << 16)
+                | ((timestamp >>> 48) & 0x0FFFL);
+        long leastSigBits = ((((long) clockSequence & DCE_CLOCK_SEQUENCE_MASK) << 8)
+                | ((long) localDomain & DCE_LOCAL_DOMAIN_MASK)) << 48
+                | (node & NODE_MASK);
+        return newWithVersion(mostSigBits, leastSigBits, 2);
+    }
+
+    /// Generates a version-2 UUID using the system clock and the default
+    /// [SecureRandom].
+    ///
+    /// @param localDomain     the DCE local domain
+    /// @param localIdentifier the local identifier for that domain
+    /// @return a freshly generated version-2 UUID
+    public static UUID generateV2(int localDomain, long localIdentifier) {
+        return generateV2(localDomain, localIdentifier, InstantSource.system(), RandomGeneratorHolder.INSTANCE);
+    }
+
+    /// Generates a version-2 UUID using the given time source and random
+    /// generator.
+    ///
+    /// The clock sequence and node are drawn from `randomGenerator`. The node
+    /// has its multicast bit set to indicate a non-IEEE random node.
+    ///
+    /// @param localDomain     the DCE local domain
+    /// @param localIdentifier the local identifier for that domain
+    /// @param instantSource   the source of the current time
+    /// @param randomGenerator the source of randomness
+    /// @return a freshly generated version-2 UUID
+    public static UUID generateV2(int localDomain, long localIdentifier,
+                                  InstantSource instantSource, RandomGenerator randomGenerator) {
+        return v2(instantSource.instant(), localDomain, localIdentifier,
+                randomDceClockSequence(randomGenerator), randomNode(randomGenerator));
     }
 
     // ========================================================================
@@ -674,15 +773,21 @@ public final class UUIDs {
     /// 1582-10-15T00:00:00Z and 1970-01-01T00:00:00Z.
     private static final long GREGORIAN_OFFSET = 0x01B2_1DD2_1381_4000L;
 
-    /// A mask for the 60-bit Gregorian timestamp field used by version 1 and
-    /// version 6 UUIDs.
+    /// A mask for the 60-bit Gregorian timestamp field used by version 1, 2,
+    /// and 6 UUIDs.
     private static final long GREGORIAN_TIMESTAMP_MASK = 0x0FFF_FFFF_FFFF_FFFFL;
 
     /// A mask for the 14-bit clock sequence field used by version 1 and
     /// version 6 UUIDs.
     private static final int CLOCK_SEQUENCE_MASK = 0x3FFF;
 
-    /// A mask for the 48-bit node field used by version 1 and version 6 UUIDs.
+    /// A mask for the 6-bit clock sequence field used by version 2 UUIDs.
+    private static final int DCE_CLOCK_SEQUENCE_MASK = 0x3F;
+
+    /// A mask for the 8-bit local domain field used by version 2 UUIDs.
+    private static final int DCE_LOCAL_DOMAIN_MASK = 0xFF;
+
+    /// A mask for the 48-bit node field used by version 1, 2, and 6 UUIDs.
     private static final long NODE_MASK = 0xFFFF_FFFF_FFFFL;
 
     /// The multicast bit in the first octet of a randomly generated node ID.
@@ -859,6 +964,15 @@ public final class UUIDs {
         return (timeHi << 48) | (timeMid << 32) | timeLow;
     }
 
+    /// Extracts the available high 28 bits of the Gregorian timestamp from a
+    /// version-2 UUID and returns the low 32 bits as zero.
+    private static long getV2Timestamp(UUID uuid) {
+        long msb = uuid.getMostSignificantBits();
+        long timeMid = (msb >>> 16) & 0xFFFFL;
+        long timeHi = msb & 0x0FFFL;
+        return (timeHi << 48) | (timeMid << 32);
+    }
+
     /// Extracts the 60-bit Gregorian timestamp from a version-6 UUID.
     private static long getV6Timestamp(UUID uuid) {
         long msb = uuid.getMostSignificantBits();
@@ -888,6 +1002,11 @@ public final class UUIDs {
     /// Generates a random 14-bit clock sequence.
     private static int randomClockSequence(RandomGenerator randomGenerator) {
         return randomGenerator.nextInt() & CLOCK_SEQUENCE_MASK;
+    }
+
+    /// Generates a random 6-bit DCE Security clock sequence.
+    private static int randomDceClockSequence(RandomGenerator randomGenerator) {
+        return randomGenerator.nextInt() & DCE_CLOCK_SEQUENCE_MASK;
     }
 
     /// Generates a random 48-bit node ID with the multicast bit set.
