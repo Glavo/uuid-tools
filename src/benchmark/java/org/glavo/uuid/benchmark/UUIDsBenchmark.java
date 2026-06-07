@@ -16,8 +16,13 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.InstantSource;
+import java.util.SplittableRandom;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.random.RandomGenerator;
 
 /// Throughput benchmarks that compare uuid-tools operations with JDK UUID
 /// operations.
@@ -42,6 +47,16 @@ public class UUIDsBenchmark {
     /// Binary representation of [#SAMPLE].
     private static final byte[] SAMPLE_BYTES = UUIDs.toBytes(SAMPLE);
 
+    /// Fixed instant source used to isolate random source cost in version 7 generation.
+    private static final InstantSource FIXED_INSTANT_SOURCE =
+            InstantSource.fixed(Instant.ofEpochSecond(1, 123_456_700));
+
+    /// Secure random source used by explicit-random benchmarks.
+    private final SecureRandom secureRandom = new SecureRandom();
+
+    /// Fast non-cryptographic random source used by explicit-random benchmarks.
+    private final RandomGenerator splittableRandom = new SplittableRandom(0);
+
     /// Measures JDK random UUID generation with its default random source.
     @Benchmark
     public UUID jdkRandomUUID() {
@@ -54,10 +69,34 @@ public class UUIDsBenchmark {
         return UUIDs.generateV4();
     }
 
+    /// Measures uuid-tools version 4 generation with an explicit [SecureRandom].
+    @Benchmark
+    public UUID uuidToolsGenerateV4WithSecureRandom() {
+        return UUIDs.generateV4(secureRandom);
+    }
+
+    /// Measures uuid-tools version 4 generation with an explicit [SplittableRandom].
+    @Benchmark
+    public UUID uuidToolsGenerateV4WithSplittableRandom() {
+        return UUIDs.generateV4(splittableRandom);
+    }
+
     /// Measures uuid-tools version 7 generation with its default random source.
     @Benchmark
     public UUID uuidToolsGenerateV7() {
         return UUIDs.generateV7();
+    }
+
+    /// Measures uuid-tools version 7 generation with an explicit [SecureRandom].
+    @Benchmark
+    public UUID uuidToolsGenerateV7WithSecureRandom() {
+        return UUIDs.generateV7(FIXED_INSTANT_SOURCE, secureRandom);
+    }
+
+    /// Measures uuid-tools version 7 generation with an explicit [SplittableRandom].
+    @Benchmark
+    public UUID uuidToolsGenerateV7WithSplittableRandom() {
+        return UUIDs.generateV7(FIXED_INSTANT_SOURCE, splittableRandom);
     }
 
     /// Measures uuid-tools standard UUID parsing.
