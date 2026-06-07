@@ -273,7 +273,7 @@ public final class UUIDs {
             case 1 -> instantFromGregorianTimestamp(getV1Timestamp(uuid));
             case 2 -> instantFromGregorianTimestamp(getV2Timestamp(uuid));
             case 6 -> instantFromGregorianTimestamp(getV6Timestamp(uuid));
-            case 7 -> Instant.ofEpochMilli(uuid.getMostSignificantBits() >>> 16);
+            case 7 -> Instant.ofEpochMilli(getV7UnixTimestampMillis(uuid));
             default -> throw new IllegalArgumentException("UUID version " + version + " does not contain a timestamp");
         };
     }
@@ -297,8 +297,8 @@ public final class UUIDs {
             case 2 -> getV2Timestamp(uuid);
             case 6 -> getV6Timestamp(uuid);
             case 7 -> {
-                long unixMillis = uuid.getMostSignificantBits() >>> 16;
-                yield GREGORIAN_OFFSET + unixMillis * 10_000L;
+                long unixMillis = getV7UnixTimestampMillis(uuid);
+                yield GREGORIAN_OFFSET + unixMillis * GREGORIAN_TICKS_PER_MILLI;
             }
             default -> throw new IllegalArgumentException("UUID version " + version
                     + " does not contain a Gregorian timestamp");
@@ -321,7 +321,7 @@ public final class UUIDs {
             case 1 -> unixTimestampMillisFromGregorianTimestamp(getV1Timestamp(uuid));
             case 2 -> unixTimestampMillisFromGregorianTimestamp(getV2Timestamp(uuid));
             case 6 -> unixTimestampMillisFromGregorianTimestamp(getV6Timestamp(uuid));
-            case 7 -> uuid.getMostSignificantBits() >>> 16;
+            case 7 -> getV7UnixTimestampMillis(uuid);
             default -> throw new IllegalArgumentException("UUID version " + version
                     + " does not contain a timestamp");
         };
@@ -390,7 +390,7 @@ public final class UUIDs {
     @Contract(pure = true)
     public static int getV7RandA(UUID uuid) {
         requireVersion(uuid, 7);
-        return (int) (uuid.getMostSignificantBits() & 0x0FFFL);
+        return (int) (uuid.getMostSignificantBits() & LOW_12_BITS_MASK);
     }
 
     /// Extracts the 62-bit `rand_b` field from a version 7 UUID.
@@ -401,7 +401,7 @@ public final class UUIDs {
     @Contract(pure = true)
     public static long getV7RandB(UUID uuid) {
         requireVersion(uuid, 7);
-        return uuid.getLeastSignificantBits() & 0x3FFF_FFFF_FFFF_FFFFL;
+        return uuid.getLeastSignificantBits() & LEAST_SIG_BITS_PAYLOAD_MASK;
     }
 
     // ========================================================================
@@ -609,7 +609,7 @@ public final class UUIDs {
         long timestamp = gregorianTimestamp & GREGORIAN_TIMESTAMP_MASK;
         long mostSigBits = ((timestamp & UINT_MASK) << 32)
                 | (((timestamp >>> 32) & 0xFFFFL) << 16)
-                | ((timestamp >>> 48) & 0x0FFFL);
+                | ((timestamp >>> 48) & LOW_12_BITS_MASK);
         long leastSigBits = (((long) clockSequence & CLOCK_SEQUENCE_MASK) << 48)
                 | (node & NODE_MASK);
         return newWithVersion(mostSigBits, leastSigBits, 1);
@@ -673,7 +673,7 @@ public final class UUIDs {
         long timestamp = gregorianTimestamp & GREGORIAN_TIMESTAMP_MASK;
         long mostSigBits = ((localIdentifier & UINT_MASK) << 32)
                 | (((timestamp >>> 32) & 0xFFFFL) << 16)
-                | ((timestamp >>> 48) & 0x0FFFL);
+                | ((timestamp >>> 48) & LOW_12_BITS_MASK);
         long leastSigBits = ((((long) clockSequence & DCE_CLOCK_SEQUENCE_MASK) << 8)
                 | ((long) localDomain & DCE_LOCAL_DOMAIN_MASK)) << 48
                 | (node & NODE_MASK);
@@ -857,7 +857,7 @@ public final class UUIDs {
     @Contract(pure = true)
     public static UUID v6(long gregorianTimestamp, int clockSequence, long node) {
         long timestamp = gregorianTimestamp & GREGORIAN_TIMESTAMP_MASK;
-        long mostSigBits = ((timestamp >>> 12) << 16) | (timestamp & 0x0FFFL);
+        long mostSigBits = ((timestamp >>> 12) << 16) | (timestamp & LOW_12_BITS_MASK);
         long leastSigBits = (((long) clockSequence & CLOCK_SEQUENCE_MASK) << 48)
                 | (node & NODE_MASK);
         return newWithVersion(mostSigBits, leastSigBits, 6);
@@ -943,11 +943,9 @@ public final class UUIDs {
     /// @return a version-7 UUID
     @Contract(pure = true)
     public static UUID v7(long epochMilli, int randA, long randB) {
-        final int randomAMask = 0x0FFF;
-        final long randomBMask = 0x3FFF_FFFF_FFFF_FFFFL;
-        long mostSigBits = ((epochMilli & 0xFFFF_FFFF_FFFFL) << 16)
-                | ((long) randA & randomAMask);
-        long leastSigBits = randB & randomBMask;
+        long mostSigBits = ((epochMilli & LOW_48_BITS_MASK) << 16)
+                | ((long) randA & LOW_12_BITS_MASK);
+        long leastSigBits = randB & LEAST_SIG_BITS_PAYLOAD_MASK;
         return newWithVersion(mostSigBits, leastSigBits, 7);
     }
 
@@ -1009,7 +1007,7 @@ public final class UUIDs {
         mostSigBits = (mostSigBits & 0xFFFF_FFFF_FFFF_0FFFL)
                 | ((long) (version & 0xF) << 12);
         // Clear variant bits (62–63 of leastSigBits) and set variant 10
-        leastSigBits = (leastSigBits & 0x3FFF_FFFF_FFFF_FFFFL)
+        leastSigBits = (leastSigBits & LEAST_SIG_BITS_PAYLOAD_MASK)
                 | 0x8000_0000_0000_0000L;
         return new UUID(mostSigBits, leastSigBits);
     }
@@ -1022,9 +1020,27 @@ public final class UUIDs {
     /// 1582-10-15T00:00:00Z and 1970-01-01T00:00:00Z.
     private static final long GREGORIAN_OFFSET = 0x01B2_1DD2_1381_4000L;
 
+    /// The number of Gregorian 100-nanosecond ticks in one second.
+    private static final long GREGORIAN_TICKS_PER_SECOND = 10_000_000L;
+
+    /// The number of Gregorian 100-nanosecond ticks in one millisecond.
+    private static final long GREGORIAN_TICKS_PER_MILLI = 10_000L;
+
+    /// The number of nanoseconds in one Gregorian 100-nanosecond tick.
+    private static final long NANOS_PER_GREGORIAN_TICK = 100L;
+
+    /// A mask for the low 12 bits of a field.
+    private static final int LOW_12_BITS_MASK = 0x0FFF;
+
+    /// A mask for the low 48 bits of a field.
+    private static final long LOW_48_BITS_MASK = 0xFFFF_FFFF_FFFFL;
+
     /// A mask for the 60-bit Gregorian timestamp field used by version 1, 2,
     /// and 6 UUIDs.
     private static final long GREGORIAN_TIMESTAMP_MASK = 0x0FFF_FFFF_FFFF_FFFFL;
+
+    /// A mask for the 62 payload bits below the UUID variant field.
+    private static final long LEAST_SIG_BITS_PAYLOAD_MASK = 0x3FFF_FFFF_FFFF_FFFFL;
 
     /// A mask for the 14-bit clock sequence field used by version 1 and
     /// version 6 UUIDs.
@@ -1037,7 +1053,7 @@ public final class UUIDs {
     private static final int DCE_LOCAL_DOMAIN_MASK = 0xFF;
 
     /// A mask for the 48-bit node field used by version 1, 2, and 6 UUIDs.
-    private static final long NODE_MASK = 0xFFFF_FFFF_FFFFL;
+    private static final long NODE_MASK = LOW_48_BITS_MASK;
 
     /// The multicast bit in the first octet of a randomly generated node ID.
     private static final long RANDOM_NODE_MULTICAST_MASK = 1L << 40;
@@ -1148,9 +1164,9 @@ public final class UUIDs {
     private static long getV1Timestamp(UUID uuid) {
         long msb = uuid.getMostSignificantBits();
         // time_low (bits 0–31) | time_mid (bits 32–47) | time_hi (bits 48–59)
-        long timeLow = (msb >>> 32) & 0xFFFFFFFFL;
+        long timeLow = (msb >>> 32) & UINT_MASK;
         long timeMid = (msb >>> 16) & 0xFFFFL;
-        long timeHi = msb & 0x0FFFL;
+        long timeHi = msb & LOW_12_BITS_MASK;
         return (timeHi << 48) | (timeMid << 32) | timeLow;
     }
 
@@ -1159,7 +1175,7 @@ public final class UUIDs {
     private static long getV2Timestamp(UUID uuid) {
         long msb = uuid.getMostSignificantBits();
         long timeMid = (msb >>> 16) & 0xFFFFL;
-        long timeHi = msb & 0x0FFFL;
+        long timeHi = msb & LOW_12_BITS_MASK;
         return (timeHi << 48) | (timeMid << 32);
     }
 
@@ -1167,16 +1183,21 @@ public final class UUIDs {
     private static long getV6Timestamp(UUID uuid) {
         long msb = uuid.getMostSignificantBits();
         // time_high (bits 0–31) | time_mid (bits 32–47) | time_low (bits 48–59)
-        long timeHighMid = (msb >>> 16) & 0xFFFF_FFFF_FFFFL;
-        long timeLow = msb & 0x0FFFL;
+        long timeHighMid = (msb >>> 16) & LOW_48_BITS_MASK;
+        long timeLow = msb & LOW_12_BITS_MASK;
         return (timeHighMid << 12) | timeLow;
+    }
+
+    /// Extracts the 48-bit Unix epoch millisecond timestamp from a version-7 UUID.
+    private static long getV7UnixTimestampMillis(UUID uuid) {
+        return uuid.getMostSignificantBits() >>> 16;
     }
 
     /// Converts an [Instant] to a Gregorian 100-nanosecond timestamp since
     /// 1582-10-15T00:00:00Z.
     private static long gregorianTimestamp(Instant instant) {
-        long seconds = Math.multiplyExact(instant.getEpochSecond(), 10_000_000L);
-        long nanos100 = instant.getNano() / 100L;
+        long seconds = Math.multiplyExact(instant.getEpochSecond(), GREGORIAN_TICKS_PER_SECOND);
+        long nanos100 = instant.getNano() / NANOS_PER_GREGORIAN_TICK;
         return Math.addExact(Math.addExact(seconds, nanos100), GREGORIAN_OFFSET);
     }
 
@@ -1184,14 +1205,15 @@ public final class UUIDs {
     private static Instant instantFromGregorianTimestamp(long timestamp) {
         // Convert from Gregorian epoch (1582-10-15) to Unix epoch (1970-01-01)
         long unixNanos100 = timestamp - GREGORIAN_OFFSET;
-        long seconds = Math.floorDiv(unixNanos100, 10_000_000L);
-        long nanoAdjustment = Math.floorMod(unixNanos100, 10_000_000L) * 100L;
+        long seconds = Math.floorDiv(unixNanos100, GREGORIAN_TICKS_PER_SECOND);
+        long nanoAdjustment = Math.floorMod(unixNanos100, GREGORIAN_TICKS_PER_SECOND)
+                * NANOS_PER_GREGORIAN_TICK;
         return Instant.ofEpochSecond(seconds, nanoAdjustment);
     }
 
     /// Converts a Gregorian 100-nanosecond timestamp to Unix epoch milliseconds.
     private static long unixTimestampMillisFromGregorianTimestamp(long timestamp) {
-        return Math.floorDiv(timestamp - GREGORIAN_OFFSET, 10_000L);
+        return Math.floorDiv(timestamp - GREGORIAN_OFFSET, GREGORIAN_TICKS_PER_MILLI);
     }
 
     /// Generates a random 14-bit clock sequence.

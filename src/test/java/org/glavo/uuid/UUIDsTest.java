@@ -512,7 +512,7 @@ class UUIDsTest {
     void v7PreservesTimestamp() {
         long epochMilli = 1_718_000_000_000L;
         UUID result = UUIDs.v7(epochMilli, 0, 0L);
-        long extractedMilli = result.getMostSignificantBits() >>> 16;
+        long extractedMilli = UUIDs.getUnixTimestampMillis(result);
         assertEquals(epochMilli, extractedMilli);
     }
 
@@ -556,10 +556,9 @@ class UUIDsTest {
         int subMillisecondFraction = (int) (((long) (instant.getNano() % 1_000_000) << 10)
                 / 1_000_000);
         int randA = (subMillisecondFraction << 2) | (int) (randomBits >>> 62);
-        assertEquals(instant.toEpochMilli(), result.getMostSignificantBits() >>> 16);
-        assertEquals(randA, (int) (result.getMostSignificantBits() & 0x0FFFL));
-        assertEquals(randomBits & 0x3FFF_FFFF_FFFF_FFFFL,
-                result.getLeastSignificantBits() & 0x3FFF_FFFF_FFFF_FFFFL);
+        assertEquals(instant.toEpochMilli(), UUIDs.getUnixTimestampMillis(result));
+        assertEquals(randA, UUIDs.getV7RandA(result));
+        assertEquals(randomBits << 2 >>> 2, UUIDs.getV7RandB(result));
     }
 
     // ---- Version 8 (custom) ----
@@ -663,7 +662,7 @@ class UUIDsTest {
     void getV7FieldsReturnEncodedMasks() {
         UUID uuid = UUIDs.v7(0L, -1, -1L);
         assertEquals(0xFFF, UUIDs.getV7RandA(uuid));
-        assertEquals(0x3FFF_FFFF_FFFF_FFFFL, UUIDs.getV7RandB(uuid));
+        assertEquals(-1L >>> 2, UUIDs.getV7RandB(uuid));
     }
 
     @Test
