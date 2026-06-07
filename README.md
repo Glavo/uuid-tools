@@ -24,8 +24,7 @@ UUID v1/v2/v3/v4/v5/v6/v7/v8.
 #### Time-based UUIDs (versions 1/2/6/7)
 
 If you want to embed timestamps in UUIDs, prefer version 7. It contains a
-48-bit timestamp (millisecond precision) and 74 `rand_a`/`rand_b` bits. The
-default generator fills those fields from one 64-bit random value.
+48-bit timestamp (millisecond precision) and 74 `rand_a`/`rand_b` bits.
 
 ```java
 // Generate a version-7 UUID from the current time and default RNG
