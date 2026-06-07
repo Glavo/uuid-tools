@@ -44,10 +44,22 @@ import java.util.random.RandomGenerator;
 /// The following subsections describe the UUID versions understood by this
 /// class and define the shared behavior referenced by version-specific
 /// methods.
-/// For new time-ordered UUID generation, prefer <a href="#uuid-version-7">
-/// Version 7 UUIDs</a>. Version 1 and version 6 UUIDs are primarily useful
-/// when existing systems require Gregorian timestamps, clock sequences, or
-/// node fields.
+///
+/// Use these defaults:
+///
+/// - For general application IDs that should sort by creation time, use
+///   [#generateV7()]. Version 1 has legacy Gregorian timestamp, clock sequence,
+///   and node fields; version 6 keeps that legacy field model.
+/// - For opaque random IDs that do not need time ordering, use [#generateV4()].
+///   Version 8 is application-defined and requires the application to define
+///   its own uniqueness rules.
+/// - For deterministic IDs derived from stable names, use [#generateV5(UUID, String)].
+///   Version 3 uses MD5 and is kept for compatibility with existing version-3
+///   UUIDs.
+/// - Use version 1 or version 6 when interoperating with systems that require
+///   Gregorian timestamps, clock sequences, or node fields. Version 7 is the
+///   preferred time-ordered UUID format for new systems.
+/// - Use version 8 only for a documented application-specific layout.
 ///
 /// <h3 id="uuid-version-1">Version 1 UUIDs</h3>
 ///
