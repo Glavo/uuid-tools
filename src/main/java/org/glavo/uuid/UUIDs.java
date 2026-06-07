@@ -91,10 +91,16 @@ public final class UUIDs {
     /// | Length | Format                  | Example                                        |
     /// |--------|-------------------------|------------------------------------------------|
     /// | 36     | Standard hyphenated     | `550e8400-e29b-41d4-a716-446655440000`          |
+    /// | <=36   | Java-style hyphenated   | `1-1-1-1-1`                                    |
     /// | 32     | Compact (no hyphens)    | `550e8400e29b41d4a716446655440000`              |
     /// | 38     | Windows registry        | `{550e8400-e29b-41d4-a716-446655440000}`        |
     /// | 45     | URN                     | `urn:uuid:550e8400-e29b-41d4-a716-446655440000` |
     /// | 22     | Base62                  | `6aGFHbkMKi3UrLaRLGaKzG`                       |
+    ///
+    /// Java-style hyphenated strings follow the parsing behavior of
+    /// [UUID#fromString(String)]: five hexadecimal groups separated by four
+    /// hyphens are parsed with [Long#parseLong(CharSequence, int, int, int)]
+    /// and masked into the canonical UUID fields.
     ///
     /// @param value the string to parse
     /// @return the parsed UUID
@@ -105,26 +111,40 @@ public final class UUIDs {
         int length = value.length(); // implicit null check
 
         if (length == 36) {
-            return parseStandard(value, 0);
-        } else if (length == 32) {
-            return parseCompact(value);
-        } else if (length == 38) {
-            // Windows registry format: {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
-            if (value.charAt(0) != '{' || value.charAt(37) != '}') {
-                throw new IllegalArgumentException("Invalid UUID string: " + value);
+            if (hasStandardHyphenPositions(value, 0) && value.indexOf('+') < 0) {
+                return parseStandard(value, 0);
             }
-            return parseStandard(value, 1);
-        } else if (length == 45) {
-            // URN format: urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-            if (!value.regionMatches(true, 0, "urn:uuid:", 0, 9)) {
-                throw new IllegalArgumentException("Invalid UUID string: " + value);
+            if (value.indexOf('-') >= 0) {
+                return parseLenientStandard(value);
             }
-            return parseStandard(value, 9);
-        } else if (length == 22) {
-            return parseBase62(value);
-        } else {
-            throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
+
+        if (length == 38 && value.charAt(0) == '{' && value.charAt(37) == '}') {
+            // Windows registry format: {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
+            return parseStandard(value, 1);
+        }
+
+        int firstHyphen = value.indexOf('-');
+        if (firstHyphen >= 0) {
+            if (length < 36) {
+                return parseLenientStandard(value);
+            }
+
+            if (length == 45 && value.regionMatches(true, 0, "urn:uuid:", 0, 9)) {
+                // URN format: urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                return parseStandard(value, 9);
+            }
+        }
+
+        if (length == 32) {
+            return parseCompact(value);
+        }
+
+        if (length == 22) {
+            return parseBase62(value);
+        }
+
+        throw new IllegalArgumentException("Invalid UUID string: " + value);
     }
 
     // ========================================================================
@@ -586,8 +606,7 @@ public final class UUIDs {
     /// the string. The 36 characters at `offset` must follow the pattern
     /// `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
     private static UUID parseStandard(String value, int offset) {
-        if (value.charAt(offset + 8) != '-' || value.charAt(offset + 13) != '-'
-                || value.charAt(offset + 18) != '-' || value.charAt(offset + 23) != '-') {
+        if (!hasStandardHyphenPositions(value, offset)) {
             throw new IllegalArgumentException("Invalid UUID string: " + value);
         }
         long msb = parseHex(value, offset, offset + 8);
@@ -595,6 +614,38 @@ public final class UUIDs {
         msb = (msb << 16) | parseHex(value, offset + 14, offset + 18);
         long lsb = parseHex(value, offset + 19, offset + 23);
         lsb = (lsb << 48) | parseHex(value, offset + 24, offset + 36);
+        return new UUID(msb, lsb);
+    }
+
+    /// Returns whether the 36 characters at `offset` use standard UUID
+    /// hyphen positions.
+    private static boolean hasStandardHyphenPositions(String value, int offset) {
+        return value.charAt(offset + 8) == '-' && value.charAt(offset + 13) == '-'
+                && value.charAt(offset + 18) == '-' && value.charAt(offset + 23) == '-';
+    }
+
+    /// Parses a bare hyphenated UUID using the lenient rules of
+    /// [UUID#fromString(String)].
+    private static UUID parseLenientStandard(String value) {
+        int length = value.length();
+        if (length > 36) {
+            throw new IllegalArgumentException("Invalid UUID string: " + value);
+        }
+
+        int dash1 = value.indexOf('-');
+        int dash2 = dash1 < 0 ? -1 : value.indexOf('-', dash1 + 1);
+        int dash3 = dash2 < 0 ? -1 : value.indexOf('-', dash2 + 1);
+        int dash4 = dash3 < 0 ? -1 : value.indexOf('-', dash3 + 1);
+        int dash5 = dash4 < 0 ? -1 : value.indexOf('-', dash4 + 1);
+        if (dash1 < 0 || dash4 < 0 || dash5 >= 0) {
+            throw new IllegalArgumentException("Invalid UUID string: " + value);
+        }
+
+        long msb = Long.parseLong(value, 0, dash1, 16) & UINT_MASK;
+        msb = (msb << 16) | (Long.parseLong(value, dash1 + 1, dash2, 16) & 0xFFFFL);
+        msb = (msb << 16) | (Long.parseLong(value, dash2 + 1, dash3, 16) & 0xFFFFL);
+        long lsb = Long.parseLong(value, dash3 + 1, dash4, 16) & 0xFFFFL;
+        lsb = (lsb << 48) | (Long.parseLong(value, dash4 + 1, length, 16) & 0xFFFF_FFFF_FFFFL);
         return new UUID(msb, lsb);
     }
 

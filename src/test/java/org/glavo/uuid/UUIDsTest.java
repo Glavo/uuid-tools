@@ -86,10 +86,42 @@ class UUIDsTest {
     }
 
     @Test
+    void parseJavaStyleShortHyphenatedFormat() {
+        assertEquals(UUID.fromString("00000001-0001-0001-0001-000000000001"),
+                UUIDs.parse("1-1-1-1-1"));
+    }
+
+    @Test
+    void parseJavaStyleHyphenatedFormatUsesLowBits() {
+        assertEquals(UUID.fromString("56789012-2345-2345-2345-000000000001"),
+                UUIDs.parse("123456789012-12345-12345-12345-1"));
+    }
+
+    @Test
+    void parseJavaStyleHyphenatedFormatWithNonCanonicalDashPositions() {
+        assertEquals(UUID.fromString("23456789-1234-1234-1234-012345678901"),
+                UUIDs.parse("123456789-1234-1234-1234-12345678901"));
+    }
+
+    @Test
+    void parseJavaStyleHyphenatedFormatWithPlusSign() {
+        assertEquals(UUID.fromString("00000001-0001-0001-0001-000000000001"),
+                UUIDs.parse("+1-+1-+1-+1-+1"));
+    }
+
+    @Test
+    void parseJavaStyleCanonicalLengthHyphenatedFormatWithPlusSign() {
+        assertEquals(UUID.fromString("02345678-1234-1234-1234-123456789012"),
+                UUIDs.parse("+2345678-1234-1234-1234-123456789012"));
+    }
+
+    @Test
     void parseInvalidThrows() {
         assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("not-a-uuid"));
         assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("550e8400-e29b-41d4-a716-44665544000g"));
         assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("[550e8400-e29b-41d4-a716-446655440000]"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("1-1-1-1"));
+        assertThrows(IllegalArgumentException.class, () -> UUIDs.parse("1-1-1-1-1-1"));
     }
 
     // ---- Formatting ----
