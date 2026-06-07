@@ -22,8 +22,8 @@ import java.util.HexFormat;
 import java.util.UUID;
 import java.util.random.RandomGenerator;
 
-/// Utility methods for [UUID] — create, parse, format, compare. Implements
-/// [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562).
+/// Utility methods for [UUID]: creation, parsing, formatting, and comparison.
+/// Implements [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562).
 ///
 /// Provides constants ([#NIL], [#MAX], four namespace UUIDs), multi-format
 /// parsing, compact/URN/OID/Base62 formatting, unsigned comparison, timestamp
@@ -31,55 +31,49 @@ import java.util.random.RandomGenerator;
 ///
 /// <h2 id="uuid-versions">UUID versions</h2>
 ///
-/// Each version serves a different use case. Pick the shape, not the number.
+/// <h3 id="uuid-version-7">Version 7 — time-ordered</h3>
 ///
-/// <h3 id="uuid-version-7">Version 7 — time-ordered (preferred)</h3>
+/// Stores a 48-bit Unix millisecond timestamp in the most significant bits,
+/// followed by random bits. UUIDs generated in order are therefore roughly
+/// sorted by creation time.
+/// See [#v7(long, long)], [#v7(Instant, long)], [#generateV7()], and
+/// [#generateV7(InstantSource, RandomGenerator)].
 ///
-/// Embeds a Unix millisecond timestamp with random bits. Sorts roughly by
-/// creation time, no node exposure. Good for databases, logs, distributed IDs.
-/// [#v7(long, long)] takes millis + random bits; [#v7(Instant, long)] converts
-/// instant to millis; [#generateV7()] and
-/// [#generateV7(InstantSource, RandomGenerator)] pull from the given sources.
+/// <h3 id="uuid-version-1">Version 1 — time-based</h3>
 ///
-/// <h3 id="uuid-version-1">Version 1 — legacy time-based</h3>
-///
-/// For compatibility with systems that need the legacy timestamp layout, clock
-/// sequence, and node. Uses a 60-bit 100-nanosecond timestamp since the
-/// Gregorian epoch `1582-10-15T00:00:00Z`, plus clock sequence and node.
-/// [#v1(long, int, long)] / [#v1(Instant, int, long)] accept these fields;
-/// [#generateV1()] sources them from system time and random.
+/// Uses a 60-bit 100-nanosecond timestamp since the Gregorian epoch
+/// `1582-10-15T00:00:00Z`, a 14-bit clock sequence, and a 48-bit node.
+/// See [#v1(long, int, long)], [#v1(Instant, int, long)], [#generateV1()].
 ///
 /// <h3 id="uuid-version-6">Version 6 — reordered time-based</h3>
 ///
-/// Like version 1 but with timestamp fields reordered for better lexicographic
-/// ordering. Same clock sequence and node model. Prefer version 7 for new code.
-/// [#v6(long, int, long)] / [#v6(Instant, int, long)] / [#generateV6()].
+/// Same fields as version 1, but the timestamp bits are reordered so that
+/// UUIDs sort in timestamp order.
+/// See [#v6(long, int, long)], [#v6(Instant, int, long)], [#generateV6()].
 ///
-/// <h3 id="uuid-version-5">Version 5 — SHA-1 name-based (preferred)</h3>
+/// <h3 id="uuid-version-5">Version 5 — SHA-1 name-based</h3>
 ///
-/// Deterministic UUIDs from stable names. Same namespace + name always yields
-/// the same UUID. Uses SHA-1.
-/// [#generateV5(UUID, String)] computes the hash;
-/// [#v5(byte[])] wraps an existing 20-byte SHA-1 digest.
+/// Deterministic: the same namespace and name always produce the same UUID.
+/// Uses SHA-1 truncated to 128 bits.
+/// See [#generateV5(UUID, String)], [#v5(byte[])].
 ///
 /// <h3 id="uuid-version-3">Version 3 — MD5 name-based</h3>
 ///
-/// Same shape as version 5 but uses MD5. Only for interop with existing v3
-/// UUIDs. [#generateV3(UUID, String)] / [#generateV3(UUID, byte[])] /
-/// [#generateV3(UUID, ByteBuffer)] / [#v3(byte[])].
+/// Same as version 5, but uses MD5. Provided for interoperability with
+/// existing version-3 UUIDs.
+/// See [#generateV3(UUID, String)], [#generateV3(UUID, byte[])],
+/// [#generateV3(UUID, ByteBuffer)], [#v3(byte[])].
 ///
 /// <h3 id="uuid-version-4">Version 4 — random</h3>
 ///
-/// Opaque random UUIDs. Widely supported, but random ordering hurts sorted-index
-/// locality. [#generateV4()] uses the default [SecureRandom];
-/// [#generateV4(RandomGenerator)] uses a caller-supplied generator;
-/// [#v4(long, long)] stamps bits from raw input.
+/// All non-version, non-variant bits are random.
+/// See [#generateV4()], [#generateV4(RandomGenerator)], [#v4(long, long)].
 ///
 /// <h3 id="uuid-version-8">Version 8 — custom</h3>
 ///
-/// Application-defined layout. No built-in uniqueness strategy; the caller owns
-/// all non-version, non-variant bits. [#v8(long, long)] stamps version/variant
-/// onto raw 128-bit data.
+/// Application-defined layout. The caller is responsible for all
+/// non-version, non-variant bits.
+/// See [#v8(long, long)].
 @NotNullByDefault
 public final class UUIDs {
 
@@ -210,17 +204,11 @@ public final class UUIDs {
     // Timestamp extraction
     // ========================================================================
 
-    /// Extracts the timestamp from a time-based UUID as an [Instant].
-    ///
-    /// Supported versions:
-    ///
-    /// - <a href="#uuid-version-1">Version 1 UUIDs</a>.
-    /// - <a href="#uuid-version-6">Version 6 UUIDs</a>.
-    /// - <a href="#uuid-version-7">Version 7 UUIDs</a>.
+    /// Extracts the embedded timestamp from a version-1, -6, or -7 UUID.
     ///
     /// @param uuid the UUID to extract the timestamp from
     /// @return the timestamp as an [Instant]
-    /// @throws IllegalArgumentException if the UUID version does not contain a timestamp
+    /// @throws IllegalArgumentException if the UUID version does not carry a timestamp
     @Contract(pure = true)
     public static Instant getInstant(UUID uuid) {
         int version = uuid.version();
@@ -236,7 +224,7 @@ public final class UUIDs {
     // Formatting
     // ========================================================================
 
-    /// Compact 32-character lowercase hex string (no hyphens).
+    /// Formats the UUID as a 32-character lowercase hex string without hyphens.
     ///
     /// Example: `550e8400e29b41d4a716446655440000`
     ///
@@ -248,7 +236,7 @@ public final class UUIDs {
                 + HEX_FORMAT.toHexDigits(uuid.getLeastSignificantBits());
     }
 
-    /// URN representation per RFC 9562 § 3.
+    /// Formats the UUID as a URN string per RFC 9562 § 3.
     ///
     /// Example: `urn:uuid:550e8400-e29b-41d4-a716-446655440000`
     ///
@@ -259,12 +247,12 @@ public final class UUIDs {
         return "urn:uuid:" + uuid;
     }
 
-    /// Base62-encoded string (digit set `0-9A-Za-z`).
+    /// Formats the UUID as a 22-character Base62 string (digit set `0-9A-Za-z`).
     ///
-    /// The 128-bit value is interpreted as unsigned, encoded in Base62, and
+    /// The 128-bit value is treated as unsigned, encoded in Base62, and
     /// left-padded with `0` to exactly 22 characters.
     ///
-    /// Example: the nil UUID produces `0000000000000000000000`.
+    /// Example: the nil UUID encodes as `0000000000000000000000`.
     ///
     /// @param uuid the UUID to format
     /// @return the 22-character Base62 string
@@ -300,9 +288,9 @@ public final class UUIDs {
         return new String(buf);
     }
 
-    /// OID string under the joint ISO/ITU-T UUID arc `2.25`.
+    /// Formats the UUID as an OID under the joint ISO/ITU-T UUID arc `2.25`.
     ///
-    /// The 128-bit value is interpreted as unsigned and appended to `2.25.`.
+    /// The 128-bit value is treated as unsigned and appended to `2.25.`.
     ///
     /// Example: `2.25.113059749145936325402354257176981405696`
     ///
@@ -373,24 +361,21 @@ public final class UUIDs {
 
     /// Creates a version-1 UUID from an [Instant], clock sequence, and node.
     ///
-    /// Converts the instant to a Gregorian 100-nanosecond timestamp, then
-    /// delegates to [#v1(long, int, long)].
-    ///
-    /// @param instant       the timestamp instant
-    /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are encoded
-    /// @param node          the 48-bit node value; only the low 48 bits are encoded
+    /// @param instant       the timestamp
+    /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are used
+    /// @param node          the 48-bit node value; only the low 48 bits are used
     /// @return a version-1 UUID
     @Contract(pure = true)
     public static UUID v1(Instant instant, int clockSequence, long node) {
         return v1(gregorianTimestamp(instant), clockSequence, node);
     }
 
-    /// Creates a version-1 UUID from a Gregorian 100-nanosecond timestamp,
+    /// Creates a version-1 UUID from a 60-bit Gregorian 100-nanosecond timestamp,
     /// clock sequence, and node.
     ///
-    /// @param gregorianTimestamp the 60-bit timestamp; only the low 60 bits are encoded
-    /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are encoded
-    /// @param node               the 48-bit node value; only the low 48 bits are encoded
+    /// @param gregorianTimestamp the timestamp since 1582-10-15T00:00:00Z; only the low 60 bits are used
+    /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are used
+    /// @param node               the 48-bit node value; only the low 48 bits are used
     /// @return a version-1 UUID
     @Contract(pure = true)
     public static UUID v1(long gregorianTimestamp, int clockSequence, long node) {
@@ -403,23 +388,21 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 1);
     }
 
-    /// Generates a version-1 UUID from the system clock and default
-    /// [SecureRandom].
+    /// Generates a version-1 UUID from the system clock and default [SecureRandom].
     ///
-    /// @return a freshly generated version-1 UUID
+    /// @return a version-1 UUID
     public static UUID generateV1() {
         return generateV1(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
     }
 
-    /// Generates a version-1 UUID from the given time source and random
-    /// generator.
+    /// Generates a version-1 UUID from the given time source and random generator.
     ///
-    /// The random generator supplies the clock sequence and node. The node has
-    /// its multicast bit set (non-IEEE random node).
+    /// The clock sequence and node are drawn from `randomGenerator`. The node
+    /// has its multicast bit set to indicate a non-IEEE random node.
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
-    /// @return a freshly generated version-1 UUID
+    /// @return a version-1 UUID
     public static UUID generateV1(InstantSource instantSource, RandomGenerator randomGenerator) {
         return v1(instantSource.instant(), randomClockSequence(randomGenerator), randomNode(randomGenerator));
     }
@@ -441,22 +424,20 @@ public final class UUIDs {
         return uuidFromHash(md5Digest, 3);
     }
 
-    /// Generates a version-3 UUID from a string name.
+    /// Generates a version-3 UUID from a string name, encoded as UTF-8.
     ///
-    /// The name is encoded as UTF-8 before hashing.
-    ///
-    /// @param namespace the optional namespace UUID prepended to the hash input
-    /// @param name      the name to hash
+    /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
+    /// @param name      the name
     /// @return a version-3 UUID
     @Contract(pure = true)
     public static UUID generateV3(@Nullable UUID namespace, String name) {
         return generateV3(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
-    /// Generates a version-3 UUID from a byte array.
+    /// Generates a version-3 UUID from a byte array name.
     ///
-    /// @param namespace the optional namespace UUID prepended to the hash input
-    /// @param name      the name bytes to hash
+    /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
+    /// @param name      the name bytes
     /// @return a version-3 UUID
     @Contract(pure = true)
     public static UUID generateV3(@Nullable UUID namespace, byte[] name) {
@@ -465,8 +446,8 @@ public final class UUIDs {
 
     /// Generates a version-3 UUID from the remaining bytes of a [ByteBuffer].
     ///
-    /// @param namespace the optional namespace UUID prepended to the hash input
-    /// @param name      the buffer whose remaining bytes are hashed
+    /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
+    /// @param name      the buffer; its remaining bytes are consumed
     /// @return a version-3 UUID
     @Contract(mutates = "param2")
     public static UUID generateV3(@Nullable UUID namespace, ByteBuffer name) {
@@ -477,10 +458,10 @@ public final class UUIDs {
     // Version 4 — random
     // ========================================================================
 
-    /// Creates a version-4 UUID from raw 128-bit random data.
+    /// Creates a version-4 UUID from raw 128-bit data.
     ///
-    /// @param mostSigBits  the most significant 64 bits (before version stamping)
-    /// @param leastSigBits the least significant 64 bits (before variant stamping)
+    /// @param mostSigBits  the most significant 64 bits (version bits are overwritten)
+    /// @param leastSigBits the least significant 64 bits (variant bits are overwritten)
     /// @return a version-4 UUID
     @Contract(pure = true)
     public static UUID v4(long mostSigBits, long leastSigBits) {
@@ -531,10 +512,10 @@ public final class UUIDs {
         return generateV5(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
-    /// Generates a version-5 UUID from a byte array.
+    /// Generates a version-5 UUID from a byte array name.
     ///
-    /// @param namespace the optional namespace UUID prepended to the hash input
-    /// @param name      the name bytes to hash
+    /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
+    /// @param name      the name bytes
     /// @return a version-5 UUID
     @Contract(pure = true)
     public static UUID generateV5(@Nullable UUID namespace, byte[] name) {
@@ -543,8 +524,8 @@ public final class UUIDs {
 
     /// Generates a version-5 UUID from the remaining bytes of a [ByteBuffer].
     ///
-    /// @param namespace the optional namespace UUID prepended to the hash input
-    /// @param name      the buffer whose remaining bytes are hashed
+    /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
+    /// @param name      the buffer; its remaining bytes are consumed
     /// @return a version-5 UUID
     @Contract(mutates = "param2")
     public static UUID generateV5(@Nullable UUID namespace, ByteBuffer name) {
@@ -557,24 +538,21 @@ public final class UUIDs {
 
     /// Creates a version-6 UUID from an [Instant], clock sequence, and node.
     ///
-    /// Converts the instant to a Gregorian 100-nanosecond timestamp, then
-    /// delegates to [#v6(long, int, long)].
-    ///
-    /// @param instant       the timestamp instant
-    /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are encoded
-    /// @param node          the 48-bit node value; only the low 48 bits are encoded
+    /// @param instant       the timestamp
+    /// @param clockSequence the 14-bit clock sequence; only the low 14 bits are used
+    /// @param node          the 48-bit node value; only the low 48 bits are used
     /// @return a version-6 UUID
     @Contract(pure = true)
     public static UUID v6(Instant instant, int clockSequence, long node) {
         return v6(gregorianTimestamp(instant), clockSequence, node);
     }
 
-    /// Creates a version-6 UUID from a Gregorian 100-nanosecond timestamp,
+    /// Creates a version-6 UUID from a 60-bit Gregorian 100-nanosecond timestamp,
     /// clock sequence, and node.
     ///
-    /// @param gregorianTimestamp the 60-bit timestamp; only the low 60 bits are encoded
-    /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are encoded
-    /// @param node               the 48-bit node value; only the low 48 bits are encoded
+    /// @param gregorianTimestamp the timestamp since 1582-10-15T00:00:00Z; only the low 60 bits are used
+    /// @param clockSequence      the 14-bit clock sequence; only the low 14 bits are used
+    /// @param node               the 48-bit node value; only the low 48 bits are used
     /// @return a version-6 UUID
     @Contract(pure = true)
     public static UUID v6(long gregorianTimestamp, int clockSequence, long node) {
@@ -585,23 +563,21 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 6);
     }
 
-    /// Generates a version-6 UUID from the system clock and default
-    /// [SecureRandom].
+    /// Generates a version-6 UUID from the system clock and default [SecureRandom].
     ///
-    /// @return a freshly generated version-6 UUID
+    /// @return a version-6 UUID
     public static UUID generateV6() {
         return generateV6(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
     }
 
-    /// Generates a version-6 UUID from the given time source and random
-    /// generator.
+    /// Generates a version-6 UUID from the given time source and random generator.
     ///
-    /// The random generator supplies the clock sequence and node. The node has
-    /// its multicast bit set (non-IEEE random node).
+    /// The clock sequence and node are drawn from `randomGenerator`. The node
+    /// has its multicast bit set to indicate a non-IEEE random node.
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
-    /// @return a freshly generated version-6 UUID
+    /// @return a version-6 UUID
     public static UUID generateV6(InstantSource instantSource, RandomGenerator randomGenerator) {
         return v6(instantSource.instant(), randomClockSequence(randomGenerator), randomNode(randomGenerator));
     }
@@ -612,23 +588,18 @@ public final class UUIDs {
 
     /// Creates a version-7 UUID from an [Instant] and random bits.
     ///
-    /// Converts the instant to Unix epoch milliseconds, then delegates to
-    /// [#v7(long, long)].
-    ///
     /// @param instant    the timestamp
-    /// @param randomBits random bits filling the non-timestamp, non-version,
-    ///                   non-variant positions
+    /// @param randomBits random bits for the non-timestamp, non-version, non-variant positions
     /// @return a version-7 UUID
     @Contract(pure = true)
     public static UUID v7(Instant instant, long randomBits) {
         return v7(instant.toEpochMilli(), randomBits);
     }
 
-    /// Creates a version-7 UUID from a Unix epoch millisecond timestamp and
-    /// random bits.
+    /// Creates a version-7 UUID from a Unix epoch millisecond timestamp and random bits.
     ///
     /// @param epochMilli the Unix epoch millisecond timestamp
-    /// @param randomBits random bits filling the non-timestamp positions
+    /// @param randomBits random bits for the non-timestamp, non-version, non-variant positions
     /// @return a version-7 UUID
     @Contract(pure = true)
     public static UUID v7(long epochMilli, long randomBits) {
@@ -640,20 +611,18 @@ public final class UUIDs {
         return newWithVersion(mostSigBits, leastSigBits, 7);
     }
 
-    /// Generates a version-7 UUID from the system clock and default
-    /// [SecureRandom].
+    /// Generates a version-7 UUID from the system clock and default [SecureRandom].
     ///
-    /// @return a freshly generated version-7 UUID
+    /// @return a version-7 UUID
     public static UUID generateV7() {
         return generateV7(InstantSource.system(), RandomGeneratorHolder.INSTANCE);
     }
 
-    /// Generates a version-7 UUID from the given time source and random
-    /// generator.
+    /// Generates a version-7 UUID from the given time source and random generator.
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
-    /// @return a freshly generated version-7 UUID
+    /// @return a version-7 UUID
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
         long milli = instantSource.millis();
         long randomBits = randomGenerator.nextLong();
@@ -666,8 +635,8 @@ public final class UUIDs {
 
     /// Creates a version-8 (custom) UUID from raw 128-bit data.
     ///
-    /// @param mostSigBits  the most significant 64 bits (before version stamping)
-    /// @param leastSigBits the least significant 64 bits (before variant stamping)
+    /// @param mostSigBits  the most significant 64 bits (version bits are overwritten)
+    /// @param leastSigBits the least significant 64 bits (variant bits are overwritten)
     /// @return a version-8 UUID
     @Contract(pure = true)
     public static UUID v8(long mostSigBits, long leastSigBits) {
@@ -678,11 +647,9 @@ public final class UUIDs {
     // Low-level helper
     // ========================================================================
 
-    /// Stamps version and RFC 9562 variant (`10x`) onto a raw 128-bit value.
-    ///
-    /// Version goes into bits 48–51 of `mostSigBits`. The top two bits of
-    /// `leastSigBits` are set to `10` (variant 2). All other bits are
-    /// preserved.
+    /// Sets the version field (bits 48–51 of `mostSigBits`) and the RFC 9562
+    /// variant bits (top two bits of `leastSigBits` to `10`). All other bits
+    /// are preserved.
     ///
     /// @param mostSigBits  the most significant 64 bits
     /// @param leastSigBits the least significant 64 bits
