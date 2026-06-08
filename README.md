@@ -138,6 +138,8 @@ UUID uuid = UUIDs.v8(114515L, 1919810L);
 
 ### Random Source
 
+`generateV1`/`V2`/`V4`/`V6`/`V7` require random numbers during generation.
+
 The default generation methods use a shared lightweight pseudorandom source
 seeded from `SecureRandom` during first use. It is designed for ordinary UUID
 generation where throughput and small retained state matter.
@@ -146,7 +148,10 @@ For security tokens, credentials, keys, or values that require cryptographic
 random guarantees, pass a `SecureRandom` explicitly:
 
 ```java
-UUID uuid = UUIDs.generateV4(new SecureRandom());
+UUID uuidv1 = UUIDs.generateV1(new SecureRandom());
+UUID uuidv4 = UUIDs.generateV4(new SecureRandom());
+UUID uuidv6 = UUIDs.generateV6(new SecureRandom());
+UUID uuidv7 = UUIDs.generateV7(new SecureRandom());
 ```
 
 ### Comparing UUIDs
