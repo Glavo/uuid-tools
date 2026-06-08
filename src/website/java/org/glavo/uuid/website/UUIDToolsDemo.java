@@ -578,7 +578,7 @@ public final class UUIDToolsDemo {
     /// Returns the current Unix epoch millisecond timestamp from JavaScript.
     ///
     /// @return the current Unix epoch millisecond timestamp
-    @JSBody(script = "return Date.now();")
+    @JSBody(script = "return BigInt(Date.now());")
     private static native long currentTimeMillis();
 
     /// Returns a random signed 32-bit value from JavaScript.
