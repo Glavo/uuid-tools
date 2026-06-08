@@ -1,16 +1,16 @@
 // Copyright (c) 2026 Glavo
 // SPDX-License-Identifier: MPL-2.0
 
-package org.glavo.uuid.website;
+package org.teavm.classlib.java.util;
 
 import org.jetbrains.annotations.NotNullByDefault;
 
-/// TeaVM replacement for `java.util.UUID` used by the demo website.
+/// TeaVM classlib supplement for `java.util.UUID`.
 ///
-/// The website build maps `java.util.UUID` to this class because TeaVM 0.14
-/// ships an incomplete UUID classlib implementation.
+/// TeaVM maps `org.teavm.classlib.java.*` classes to `java.*` classes. This
+/// implementation provides the UUID operations used by uuid-tools.
 @NotNullByDefault
-public final class TeaVMUUID implements Comparable<TeaVMUUID> {
+public final class TUUID implements Comparable<TUUID> {
     /// The UUID variant mask for the RFC 4122/RFC 9562 variant.
     private static final long RFC_VARIANT_MASK = 0x8000_0000_0000_0000L;
 
@@ -27,7 +27,7 @@ public final class TeaVMUUID implements Comparable<TeaVMUUID> {
     ///
     /// @param mostSigBits the most significant 64 bits
     /// @param leastSigBits the least significant 64 bits
-    public TeaVMUUID(long mostSigBits, long leastSigBits) {
+    public TUUID(long mostSigBits, long leastSigBits) {
         this.mostSigBits = mostSigBits;
         this.leastSigBits = leastSigBits;
     }
@@ -71,7 +71,7 @@ public final class TeaVMUUID implements Comparable<TeaVMUUID> {
     /// @param other the UUID to compare with
     /// @return the comparison result
     @Override
-    public int compareTo(TeaVMUUID other) {
+    public int compareTo(TUUID other) {
         int high = Long.compare(mostSigBits, other.mostSigBits);
         return high != 0 ? high : Long.compare(leastSigBits, other.leastSigBits);
     }
@@ -82,7 +82,7 @@ public final class TeaVMUUID implements Comparable<TeaVMUUID> {
     /// @return `true` when the object is an equal UUID
     @Override
     public boolean equals(Object object) {
-        return this == object || object instanceof TeaVMUUID other
+        return this == object || object instanceof TUUID other
                 && mostSigBits == other.mostSigBits
                 && leastSigBits == other.leastSigBits;
     }
@@ -118,7 +118,7 @@ public final class TeaVMUUID implements Comparable<TeaVMUUID> {
     ///
     /// @param value the UUID string
     /// @return the parsed UUID
-    public static TeaVMUUID fromString(String value) {
+    public static TUUID fromString(String value) {
         if (value.length() != 36
                 || value.charAt(8) != '-'
                 || value.charAt(13) != '-'
@@ -132,7 +132,7 @@ public final class TeaVMUUID implements Comparable<TeaVMUUID> {
         most = (most << 16) | parseHex(value, 14, 18);
         long least = parseHex(value, 19, 23);
         least = (least << 48) | parseHex(value, 24, 36);
-        return new TeaVMUUID(most, least);
+        return new TUUID(most, least);
     }
 
     /// Appends the low bits of a value as fixed-width lowercase hexadecimal.

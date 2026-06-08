@@ -61,6 +61,7 @@ val patchTeaVMClasslib by tasks.registering(Jar::class) {
 
     from({ zipTree(teavmClasslibOriginal.singleFile) }) {
         exclude("org/teavm/classlib/java/lang/invoke/TMethodHandles.class")
+        exclude("org/teavm/classlib/java/util/TUUID.class")
     }
     from(teavmClasslibPatch.output)
 
