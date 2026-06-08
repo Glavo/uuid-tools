@@ -25,6 +25,7 @@ repositories {
     mavenCentral()
 }
 
+val teavmVersion = "0.14.0"
 val mainSourceSet = sourceSets["main"]
 
 val teavmSourceSet = sourceSets.getByName("teavm").apply {
@@ -41,6 +42,31 @@ val benchmark by sourceSets.creating {
     runtimeClasspath += output + compileClasspath
 }
 
+val teavmClasslibPatch by sourceSets.creating {
+    java.srcDir("src/website/teavm-classlib-patch/java")
+}
+
+val teavmClasslibOriginal by configurations.creating {
+    isTransitive = false
+}
+
+val patchTeaVMClasslib by tasks.registering(Jar::class) {
+    description = "Builds a TeaVM classlib jar patched for the demo website."
+
+    dependsOn(tasks.named(teavmClasslibPatch.classesTaskName))
+
+    archiveBaseName.set("teavm-classlib")
+    archiveVersion.set(teavmVersion)
+    archiveClassifier.set("uuid-tools-patched")
+
+    from({ zipTree(teavmClasslibOriginal.singleFile) }) {
+        exclude("org/teavm/classlib/java/lang/invoke/TMethodHandles.class")
+    }
+    from(teavmClasslibPatch.output)
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 dependencies {
     compileOnly("org.jetbrains:annotations:26.1.0")
 
@@ -53,10 +79,12 @@ dependencies {
     add("benchmarkImplementation", "org.openjdk.jmh:jmh-core:1.37")
     add("benchmarkAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
-    val teavmVersion = "0.14.0"
+    add(teavmClasslibPatch.compileOnlyConfigurationName, "org.jetbrains:annotations:26.1.0")
+    teavmClasslibOriginal("org.teavm:teavm-classlib:$teavmVersion")
+    teavm(files(patchTeaVMClasslib))
+    teavm("org.teavm:teavm-classlib:$teavmVersion")
     teavm("org.teavm:teavm-jso:$teavmVersion")
     teavm("org.teavm:teavm-jso-impl:$teavmVersion")
-    teavm("org.teavm:teavm-classlib:$teavmVersion")
     add(teavmSourceSet.compileOnlyConfigurationName, "org.teavm:teavm-core:$teavmVersion")
 }
 

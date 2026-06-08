@@ -530,8 +530,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static String toOIDString(UUID uuid) {
         byte[] bytes = new byte[17]; // 1 extra byte for unsigned interpretation
-        writeLongBigEndian(bytes, 1, uuid.getMostSignificantBits());
-        writeLongBigEndian(bytes, 9, uuid.getLeastSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 1, uuid.getMostSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 9, uuid.getLeastSignificantBits());
         return "2.25." + new BigInteger(bytes);
     }
 
@@ -564,8 +564,8 @@ public final class UUIDs {
     @Contract(mutates = "param2")
     public static void toBytes(UUID uuid, byte[] bytes, int offset) {
         Objects.checkFromIndexSize(offset, 16, bytes.length);
-        writeLongBigEndian(bytes, offset, uuid.getMostSignificantBits());
-        writeLongBigEndian(bytes, offset + 8, uuid.getLeastSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, offset, uuid.getMostSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, offset + 8, uuid.getLeastSignificantBits());
     }
 
     /// Creates a UUID from a 16-byte big-endian representation.
@@ -591,8 +591,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static UUID fromBytes(byte[] bytes, int offset) {
         Objects.checkFromIndexSize(offset, 16, bytes.length);
-        long msb = readLongBigEndian(bytes, offset);
-        long lsb = readLongBigEndian(bytes, offset + 8);
+        long msb = (long) BYTE_ARRAY_LONG_VIEW.get(bytes, offset);
+        long lsb = (long) BYTE_ARRAY_LONG_VIEW.get(bytes, offset + 8);
         return new UUID(msb, lsb);
     }
 
@@ -1193,6 +1193,10 @@ public final class UUIDs {
     private static final byte[] BASE62_CHARS =
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
 
+    /// Big-endian byte-array view used to read and write 64-bit UUID halves.
+    private static final VarHandle BYTE_ARRAY_LONG_VIEW =
+            MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
+
     /// Shared lightweight generator used by default UUID generation methods.
     ///
     /// @param key0    First SipHash key half.
@@ -1460,19 +1464,9 @@ public final class UUIDs {
     /// Feeds a UUID's 16 big-endian bytes into a digest.
     private static void feedUUID(MessageDigest digest, UUID uuid) {
         byte[] bytes = new byte[16];
-        writeLongBigEndian(bytes, 0, uuid.getMostSignificantBits());
-        writeLongBigEndian(bytes, 8, uuid.getLeastSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 0, uuid.getMostSignificantBits());
+        BYTE_ARRAY_LONG_VIEW.set(bytes, 8, uuid.getLeastSignificantBits());
         digest.update(bytes);
-    }
-
-    /// Reads a 64-bit value in big-endian byte order.
-    private static long readLongBigEndian(byte[] bytes, int offset) {
-        return (long) ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.get(bytes, offset);
-    }
-
-    /// Writes a 64-bit value in big-endian byte order.
-    private static void writeLongBigEndian(byte[] bytes, int offset, long value) {
-        ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.set(bytes, offset, value);
     }
 
     /// Appends the low bits of a value as fixed-width lowercase hexadecimal.
@@ -1511,18 +1505,6 @@ public final class UUIDs {
             return MessageDigest.getInstance(algorithm);
         } catch (NoSuchAlgorithmException e) {
             throw new InternalError("Missing algorithm: " + algorithm, e);
-        }
-    }
-
-    /// Lazy holder for the JVM byte-array view used by public byte-array APIs.
-    @NotNullByDefault
-    private static final class ByteArrayLongViewHolder {
-        /// Big-endian byte-array view used to read and write 64-bit UUID halves.
-        static final VarHandle BYTE_ARRAY_LONG_VIEW =
-                MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
-
-        /// Creates no instances.
-        private ByteArrayLongViewHolder() {
         }
     }
 
