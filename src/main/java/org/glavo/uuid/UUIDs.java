@@ -1478,14 +1478,8 @@ public final class UUIDs {
 
     /// Constructs a UUID from the first 16 bytes of a hash digest.
     private static UUID uuidFromHash(byte[] hash, int version) {
-        long mostSigBits = 0;
-        long leastSigBits = 0;
-        for (int i = 0; i < 8; i++) {
-            mostSigBits = (mostSigBits << 8) | (hash[i] & 0xFFL);
-        }
-        for (int i = 8; i < 16; i++) {
-            leastSigBits = (leastSigBits << 8) | (hash[i] & 0xFFL);
-        }
+        long mostSigBits = (long) BYTE_ARRAY_LONG_VIEW.get(hash, 0);
+        long leastSigBits = (long) BYTE_ARRAY_LONG_VIEW.get(hash, 8);
         return newWithVersion(mostSigBits, leastSigBits, version);
     }
 
