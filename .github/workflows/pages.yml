@@ -1,17 +1,10 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: [ Gradle Check ]
+    types: [ completed ]
     branches: [ main ]
-    paths:
-      - '.github/workflows/pages.yml'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - 'gradle.properties'
-      - 'gradlew'
-      - 'gradle/wrapper/**'
-      - 'src/main/**'
-      - 'src/website/**'
   workflow_dispatch:
 
 permissions:
@@ -25,9 +18,15 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        if: github.event_name == 'workflow_run'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/checkout@v6
+        if: github.event_name != 'workflow_run'
       - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
