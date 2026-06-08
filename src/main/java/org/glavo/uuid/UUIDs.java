@@ -336,6 +336,20 @@ public final class UUIDs {
         return uuid.getMostSignificantBits() == -1L && uuid.getLeastSignificantBits() == -1L;
     }
 
+    /// Returns whether `uuid` has a time-based layout supported by this class.
+    ///
+    /// This method returns `true` for version 1, 2, 6, and 7 UUIDs. These
+    /// versions carry timestamps readable by [#getInstant(UUID)],
+    /// [#getGregorianTimestamp(UUID)], and [#getUnixTimestampMillis(UUID)].
+    ///
+    /// @param uuid the UUID to test
+    /// @return `true` if `uuid` is a version 1, 2, 6, or 7 UUID
+    @Contract(pure = true)
+    public static boolean isTimeBased(UUID uuid) {
+        int version = uuid.version();
+        return version == 1 || version == 2 || version == 6 || version == 7;
+    }
+
     /// Extracts the embedded timestamp from a version 1, 2, 6, or 7 UUID.
     ///
     /// For version 2 UUIDs, the low 32 timestamp bits are not available because

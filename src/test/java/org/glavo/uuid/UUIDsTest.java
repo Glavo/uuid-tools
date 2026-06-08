@@ -86,6 +86,20 @@ class UUIDsTest {
         assertEquals(2, v7.variant());
     }
 
+    @Test
+    void isTimeBasedMatchesTimestampCarryingVersions() {
+        assertTrue(UUIDs.isTimeBased(UUIDs.v1(0L, 0, 0L)));
+        assertTrue(UUIDs.isTimeBased(UUIDs.v2(0L, UUIDs.DCE_DOMAIN_PERSON, 0L, 0, 0L)));
+        assertTrue(UUIDs.isTimeBased(UUIDs.v6(0L, 0, 0L)));
+        assertTrue(UUIDs.isTimeBased(UUIDs.v7(0L, 0, 0L)));
+
+        assertFalse(UUIDs.isTimeBased(UUIDs.NIL));
+        assertFalse(UUIDs.isTimeBased(UUIDs.v3(new byte[16])));
+        assertFalse(UUIDs.isTimeBased(UUIDs.v4(0L, 0L)));
+        assertFalse(UUIDs.isTimeBased(UUIDs.v5(new byte[20])));
+        assertFalse(UUIDs.isTimeBased(UUIDs.v8(0L, 0L)));
+    }
+
     // ---- Parsing ----
 
     @Test
