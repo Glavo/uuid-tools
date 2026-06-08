@@ -57,6 +57,11 @@ UUID customRandomV6 = UUIDs.generateV6(new Random());
 UUID deterministicV1 = UUIDs.v1(Instant.now(), 0x1234, 0x0123_4567_89ABL);
 UUID deterministicV6 = UUIDs.v6(Instant.now(), 0x1234, 0x0123_4567_89ABL);
 
+// The only difference between UUID v6 and v1 is the ordering of the timestamp bits, 
+// so they can be losslessly converted between each other
+assert UUIDs.convertV1ToV6(deterministicV1).equals(deterministicV6);
+assert UUIDs.convertV6ToV1(deterministicV6).equals(deterministicV1);
+
 // Version 2 embeds a local DCE domain and local identifier
 UUID v2 = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501);
 UUID fixedTimeV2 = UUIDs.generateV2(UUIDs.DCE_DOMAIN_PERSON, 501, InstantSource.fixed(Instant.now()));
