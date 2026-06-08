@@ -19,7 +19,7 @@
       </div>
       <div>
         <h1>uuid-tools</h1>
-        <p>Generate, parse, inspect, and compare UUIDs with the Java API compiled to Wasm GC.</p>
+        <p>Generate, parse, and inspect UUIDs with the Java API compiled to Wasm GC.</p>
       </div>
     </div>
     <div class="runtime-status" id="runtime-status" data-state="loading">Loading runtime</div>
@@ -138,24 +138,6 @@
         <button id="copy-active-button" type="button">Copy</button>
       </div>
 
-      <div class="section-divider"></div>
-
-      <div class="compare-section" id="compare-section" data-state="idle">
-        <div class="section-heading">
-          <h3>Compare</h3>
-          <p id="compare-status">Waiting</p>
-        </div>
-
-        <label class="control">
-          <span>Other UUID</span>
-          <input id="compare-input" spellcheck="false" value="ffffffff-ffff-ffff-ffff-ffffffffffff">
-        </label>
-        <p class="panel-error" id="compare-error"></p>
-        <div class="field-grid compact-fields">
-          <div class="field-row"><span>UUIDs.compare</span><code id="compare-unsigned"></code></div>
-          <div class="field-row"><span>UUID.compareTo</span><code id="compare-jdk"></code></div>
-        </div>
-      </div>
     </section>
 
     <section class="panel inspector-panel" id="inspector-panel" data-state="idle">

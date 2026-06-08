@@ -95,7 +95,6 @@ public final class UUIDToolsDemo {
         }
         addLiveUpdateListener("parse-input", UUIDToolsDemo::parseInput);
         addLiveUpdateListener("parse-format-select", UUIDToolsDemo::parseInput);
-        addLiveUpdateListener("compare-input", UUIDToolsDemo::renderComparison);
         addClickListener("source-generate-button", UUIDToolsDemo::activateGenerateSource);
         addClickListener("source-parse-button", UUIDToolsDemo::activateParseSource);
         addClickListener("generate-button", UUIDToolsDemo::regenerate);
@@ -200,7 +199,6 @@ public final class UUIDToolsDemo {
         setText("source-error", "");
         setText("active-standard", uuid.toString());
         renderUUID(uuid);
-        renderComparison();
     }
 
     /// Rejects the current source value after a generation or parse failure.
@@ -221,7 +219,6 @@ public final class UUIDToolsDemo {
         setState("inspector-panel", "idle");
         setText("inspect-status", "Waiting");
         clearFields(INSPECTOR_FIELD_IDS);
-        renderComparison();
     }
 
     /// Renders all derived fields for the active UUID.
@@ -297,35 +294,6 @@ public final class UUIDToolsDemo {
         } else {
             setUnavailableField("field-rand-a");
             setUnavailableField("field-rand-b");
-        }
-    }
-
-    /// Renders comparison results between the active UUID and the comparison input.
-    private static void renderComparison() {
-        UUID uuid = currentUUID;
-        String input = readValue("compare-input").trim();
-        if (uuid == null || input.isEmpty()) {
-            setState("compare-section", "idle");
-            setText("compare-status", "Waiting");
-            setText("compare-error", "");
-            setText("compare-unsigned", "");
-            setText("compare-jdk", "");
-            return;
-        }
-
-        try {
-            UUID other = UUIDs.parse(input);
-            setState("compare-section", "ok");
-            setText("compare-status", "Compared");
-            setText("compare-error", "");
-            setText("compare-unsigned", Integer.toString(Integer.signum(UUIDs.compare(uuid, other))));
-            setText("compare-jdk", Integer.toString(Integer.signum(uuid.compareTo(other))));
-        } catch (RuntimeException e) {
-            setState("compare-section", "error");
-            setText("compare-status", "Rejected");
-            setText("compare-error", e.toString());
-            setText("compare-unsigned", "");
-            setText("compare-jdk", "");
         }
     }
 
