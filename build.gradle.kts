@@ -62,6 +62,7 @@ val patchTeaVMClasslib by tasks.registering(Jar::class) {
     from({ zipTree(teavmClasslibOriginal.singleFile) }) {
         exclude("org/teavm/classlib/java/lang/invoke/TMethodHandles.class")
         exclude("org/teavm/classlib/java/util/TUUID.class")
+        exclude("org/teavm/classlib/java/security/TNoSuchAlgorithmException.class")
     }
     from(teavmClasslibPatch.output)
 
@@ -81,6 +82,7 @@ dependencies {
     add("benchmarkAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
     add(teavmClasslibPatch.compileOnlyConfigurationName, "org.jetbrains:annotations:26.1.0")
+    add(teavmClasslibPatch.compileOnlyConfigurationName, "org.teavm:teavm-classlib:$teavmVersion")
     teavmClasslibOriginal("org.teavm:teavm-classlib:$teavmVersion")
     teavm(files(patchTeaVMClasslib))
     teavm("org.teavm:teavm-classlib:$teavmVersion")
