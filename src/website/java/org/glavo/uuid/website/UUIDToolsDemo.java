@@ -79,7 +79,7 @@ public final class UUIDToolsDemo {
             "field-rand-b",
     };
 
-    /// The UUID currently displayed in the generator and inspector panels.
+    /// The UUID currently displayed as the active source value.
     private static @Nullable UUID currentUUID;
 
     /// Creates no instances.
@@ -96,10 +96,23 @@ public final class UUIDToolsDemo {
         addLiveUpdateListener("parse-input", UUIDToolsDemo::parseInput);
         addLiveUpdateListener("parse-format-select", UUIDToolsDemo::parseInput);
         addLiveUpdateListener("compare-input", UUIDToolsDemo::renderComparison);
+        addClickListener("source-generate-button", UUIDToolsDemo::activateGenerateSource);
+        addClickListener("source-parse-button", UUIDToolsDemo::activateParseSource);
         addClickListener("generate-button", UUIDToolsDemo::regenerate);
-        addClickListener("use-generated-button", UUIDToolsDemo::copyGeneratedToParser);
-        addClickListener("copy-generated-button", UUIDToolsDemo::copyGeneratedToClipboard);
+        addClickListener("copy-active-button", UUIDToolsDemo::copyActiveUUIDToClipboard);
         regenerate();
+    }
+
+    /// Activates the generator as the current UUID source.
+    private static void activateGenerateSource() {
+        setDocumentSource("generate");
+        regenerate();
+    }
+
+    /// Activates the parser as the current UUID source.
+    private static void activateParseSource() {
+        setDocumentSource("parse");
+        parseInput();
     }
 
     /// Regenerates the active UUID and updates all dependent panels.
@@ -108,21 +121,9 @@ public final class UUIDToolsDemo {
         setDocumentVersion(version);
         try {
             UUID uuid = createUUID(version);
-            currentUUID = uuid;
-            setState("generator-panel", "ok");
-            setText("generate-status", "Generated");
-            setText("generate-error", "");
-            setText("generated-standard", uuid.toString());
-            renderUUID(uuid);
-            renderComparison();
+            acceptUUID(uuid, "Generated");
         } catch (RuntimeException e) {
-            currentUUID = null;
-            setState("generator-panel", "error");
-            setText("generate-status", "Failed");
-            setText("generate-error", e.toString());
-            setText("generated-standard", "");
-            clearFields(INSPECTOR_FIELD_IDS);
-            renderComparison();
+            rejectSource("Failed", e);
         }
     }
 
@@ -152,29 +153,22 @@ public final class UUIDToolsDemo {
         };
     }
 
-    /// Parses the parser panel input and renders the result.
+    /// Parses the source input and renders it as the active UUID.
     private static void parseInput() {
         String input = readValue("parse-input").trim();
         if (input.isEmpty()) {
-            setState("parser-panel", "idle");
-            setText("parse-status", "Waiting");
-            setText("parse-error", "");
+            clearActiveUUID();
+            setState("source-panel", "idle");
+            setText("source-status", "Waiting");
+            setText("source-error", "");
             return;
         }
 
         try {
             UUID uuid = parseInputUUID(input);
-            setState("parser-panel", "ok");
-            setText("parse-status", "Parsed");
-            setText("parse-error", "");
-            setText("parse-standard", uuid.toString());
-            setText("parse-base62", UUIDs.toBase62String(uuid));
+            acceptUUID(uuid, "Parsed");
         } catch (RuntimeException e) {
-            setState("parser-panel", "error");
-            setText("parse-status", "Rejected");
-            setText("parse-error", e.toString());
-            setText("parse-standard", "");
-            setText("parse-base62", "");
+            rejectSource("Rejected", e);
         }
     }
 
@@ -187,22 +181,47 @@ public final class UUIDToolsDemo {
         return "base62".equals(format) ? UUIDs.parseBase62(input) : UUIDs.parse(input);
     }
 
-    /// Copies the generated UUID into the parser input.
-    private static void copyGeneratedToParser() {
-        UUID uuid = currentUUID;
-        if (uuid != null) {
-            setValue("parse-input", uuid.toString());
-            setValue("parse-format-select", "text");
-            parseInput();
-        }
-    }
-
-    /// Copies the generated UUID string to the system clipboard through JavaScript.
-    private static void copyGeneratedToClipboard() {
+    /// Copies the active UUID string to the system clipboard through JavaScript.
+    private static void copyActiveUUIDToClipboard() {
         UUID uuid = currentUUID;
         if (uuid != null) {
             copyToClipboard(uuid.toString());
         }
+    }
+
+    /// Accepts a UUID as the active source value.
+    ///
+    /// @param uuid the UUID to display
+    /// @param status the source status text
+    private static void acceptUUID(UUID uuid, String status) {
+        currentUUID = uuid;
+        setState("source-panel", "ok");
+        setText("source-status", status);
+        setText("source-error", "");
+        setText("active-standard", uuid.toString());
+        renderUUID(uuid);
+        renderComparison();
+    }
+
+    /// Rejects the current source value after a generation or parse failure.
+    ///
+    /// @param status the source status text
+    /// @param exception the failure to display
+    private static void rejectSource(String status, RuntimeException exception) {
+        clearActiveUUID();
+        setState("source-panel", "error");
+        setText("source-status", status);
+        setText("source-error", exception.toString());
+    }
+
+    /// Clears the active UUID and all dependent derived fields.
+    private static void clearActiveUUID() {
+        currentUUID = null;
+        setText("active-standard", "");
+        setState("inspector-panel", "idle");
+        setText("inspect-status", "Waiting");
+        clearFields(INSPECTOR_FIELD_IDS);
+        renderComparison();
     }
 
     /// Renders all derived fields for the active UUID.
@@ -286,7 +305,7 @@ public final class UUIDToolsDemo {
         UUID uuid = currentUUID;
         String input = readValue("compare-input").trim();
         if (uuid == null || input.isEmpty()) {
-            setState("compare-panel", "idle");
+            setState("compare-section", "idle");
             setText("compare-status", "Waiting");
             setText("compare-error", "");
             setText("compare-unsigned", "");
@@ -296,13 +315,13 @@ public final class UUIDToolsDemo {
 
         try {
             UUID other = UUIDs.parse(input);
-            setState("compare-panel", "ok");
+            setState("compare-section", "ok");
             setText("compare-status", "Compared");
             setText("compare-error", "");
             setText("compare-unsigned", Integer.toString(Integer.signum(UUIDs.compare(uuid, other))));
             setText("compare-jdk", Integer.toString(Integer.signum(uuid.compareTo(other))));
         } catch (RuntimeException e) {
-            setState("compare-panel", "error");
+            setState("compare-section", "error");
             setText("compare-status", "Rejected");
             setText("compare-error", e.toString());
             setText("compare-unsigned", "");
@@ -528,13 +547,6 @@ public final class UUIDToolsDemo {
     @JSBody(params = {"id"}, script = "var e = document.getElementById(id); return e ? e.value : '';")
     private static native String readValue(String id);
 
-    /// Sets an input, select, or textarea value on the page.
-    ///
-    /// @param id the element id
-    /// @param value the new value
-    @JSBody(params = {"id", "value"}, script = "window.UUIDToolsDemo.setValue(id, value);")
-    private static native void setValue(String id, String value);
-
     /// Sets an element's text content.
     ///
     /// @param id the element id
@@ -568,6 +580,12 @@ public final class UUIDToolsDemo {
     /// @param version the selected UUID version
     @JSBody(params = {"version"}, script = "document.documentElement.dataset.version = String(version);")
     private static native void setDocumentVersion(int version);
+
+    /// Sets the active source mode on the document root.
+    ///
+    /// @param source the active source mode
+    @JSBody(params = {"source"}, script = "window.UUIDToolsDemo.setSourceMode(source);")
+    private static native void setDocumentSource(String source);
 
     /// Copies text to the system clipboard when the browser allows it.
     ///

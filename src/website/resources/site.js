@@ -10,13 +10,6 @@
     }
   }
 
-  function setValue(id, value) {
-    const element = byId(id);
-    if (element) {
-      element.value = value == null ? "" : String(value);
-    }
-  }
-
   function setField(id, value, state) {
     const element = byId(id);
     if (element) {
@@ -52,6 +45,21 @@
     }
   }
 
+  function setSourceMode(source) {
+    const mode = source === "parse" ? "parse" : "generate";
+    document.documentElement.dataset.source = mode;
+
+    const generateButton = byId("source-generate-button");
+    if (generateButton) {
+      generateButton.setAttribute("aria-pressed", mode === "generate" ? "true" : "false");
+    }
+
+    const parseButton = byId("source-parse-button");
+    if (parseButton) {
+      parseButton.setAttribute("aria-pressed", mode === "parse" ? "true" : "false");
+    }
+  }
+
   function copyToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
@@ -81,17 +89,17 @@
       setRuntimeStatus("ready", "Wasm GC ready");
     } catch (error) {
       setRuntimeStatus("error", "Runtime failed");
-      setText("generate-error", error && error.stack ? error.stack : String(error));
-      setState("generator-panel", "error");
+      setText("source-error", error && error.stack ? error.stack : String(error));
+      setState("source-panel", "error");
     }
   }
 
   window.UUIDToolsDemo = {
     setText,
-    setValue,
     setField,
     clearField,
     setState,
+    setSourceMode,
     copyToClipboard
   };
 

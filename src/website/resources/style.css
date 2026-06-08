@@ -72,7 +72,8 @@ button:hover {
 }
 
 .brand h1,
-.panel h2 {
+.panel h2,
+.panel h3 {
   margin: 0;
   color: #1b2026;
   line-height: 1.15;
@@ -207,8 +208,8 @@ button:hover {
   box-shadow: 0 1px 2px rgba(26, 35, 44, 0.04);
 }
 
-.inspector-panel {
-  grid-row: span 3;
+.source-panel {
+  align-self: start;
 }
 
 .panel-header {
@@ -221,6 +222,52 @@ button:hover {
 
 .panel h2 {
   font-size: 20px;
+}
+
+.panel h3 {
+  font-size: 15px;
+}
+
+.source-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 16px;
+  border: 1px solid #c7d0da;
+  border-radius: 6px;
+  padding: 4px;
+  background: #f3f6f8;
+}
+
+.source-tab {
+  min-height: 34px;
+  border-color: transparent;
+  background: transparent;
+  color: #3d4650;
+}
+
+.source-tab:hover {
+  background: #e7eef1;
+}
+
+.source-tab[aria-pressed="true"] {
+  border-color: #9bc6bc;
+  background: #ffffff;
+  color: #14736d;
+  box-shadow: 0 1px 1px rgba(26, 35, 44, 0.05);
+}
+
+.source-mode {
+  display: none;
+}
+
+html[data-source="generate"] .generate-mode,
+html[data-source="parse"] .parse-mode {
+  display: block;
+}
+
+html[data-source="parse"] #generate-button {
+  display: none;
 }
 
 .control-grid {
@@ -296,12 +343,50 @@ html[data-version="7"] .v7-controls {
   padding-top: 14px;
 }
 
+.output-line button {
+  border-color: #c7d0da;
+  background: #ffffff;
+  color: #20252b;
+}
+
+.output-line button:hover {
+  background: #edf4f2;
+  border-color: #93b8b2;
+}
+
+.output-text {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.output-text span {
+  color: #59636f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 code {
   font-family:
     "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.section-divider {
+  margin: 18px 0;
+  border-top: 1px solid #e5e9ef;
+}
+
+.section-heading {
+  margin-bottom: 12px;
+}
+
+.section-heading p {
+  margin: 4px 0 0;
+  color: #59636f;
+  line-height: 1.45;
 }
 
 .field-grid {
@@ -312,6 +397,10 @@ code {
 
 .compact-fields {
   margin-top: 12px;
+}
+
+.source-panel .compact-fields {
+  grid-template-columns: 1fr;
 }
 
 .field-row {
@@ -345,11 +434,16 @@ code {
   color: #14736d;
 }
 
+.compare-section[data-state="ok"] .section-heading p {
+  color: #14736d;
+}
+
 .panel[data-state="error"] {
   border-color: #e7a6a1;
 }
 
-.panel[data-state="error"] .panel-header p {
+.panel[data-state="error"] .panel-header p,
+.compare-section[data-state="error"] .section-heading p {
   color: #b42318;
 }
 
@@ -363,9 +457,6 @@ code {
     grid-template-columns: 1fr;
   }
 
-  .inspector-panel {
-    grid-row: auto;
-  }
 }
 
 @media (max-width: 640px) {
@@ -409,7 +500,8 @@ code {
   }
 
   .panel-header button,
-  .button-row button {
+  .button-row button,
+  #copy-active-button {
     width: 100%;
   }
 

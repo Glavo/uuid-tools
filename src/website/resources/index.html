@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-version="7">
+<html lang="en" data-source="generate" data-version="7">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -33,85 +33,127 @@
   </header>
 
   <main class="workspace">
-    <section class="panel generator-panel" id="generator-panel" data-state="idle">
+    <section class="panel source-panel" id="source-panel" data-state="idle">
       <div class="panel-header">
         <div>
-          <h2>Generator</h2>
-          <p id="generate-status">Waiting</p>
+          <h2>Source</h2>
+          <p id="source-status">Waiting</p>
         </div>
         <button id="generate-button" type="button">Generate</button>
       </div>
 
-      <div class="control-grid">
-        <label class="control">
-          <span>Version</span>
-          <select id="version-select">
-            <option value="7" selected>Version 7</option>
-            <option value="4">Version 4</option>
-            <option value="5">Version 5</option>
-            <option value="3">Version 3</option>
-            <option value="1">Version 1</option>
-            <option value="6">Version 6</option>
-            <option value="2">Version 2</option>
-            <option value="8">Version 8</option>
-          </select>
-        </label>
+      <div class="source-tabs" role="tablist" aria-label="UUID source">
+        <button id="source-generate-button" class="source-tab" type="button" aria-pressed="true">Generate</button>
+        <button id="source-parse-button" class="source-tab" type="button" aria-pressed="false">Parse</button>
+      </div>
 
-        <div class="control-set name-controls">
+      <div class="source-mode generate-mode">
+        <div class="control-grid">
           <label class="control">
-            <span>Namespace</span>
-            <select id="namespace-select">
-              <option value="dns" selected>DNS</option>
-              <option value="url">URL</option>
-              <option value="oid">OID</option>
-              <option value="x500">X.500</option>
-              <option value="none">None</option>
-              <option value="custom">Custom</option>
+            <span>Version</span>
+            <select id="version-select">
+              <option value="7" selected>Version 7</option>
+              <option value="4">Version 4</option>
+              <option value="5">Version 5</option>
+              <option value="3">Version 3</option>
+              <option value="1">Version 1</option>
+              <option value="6">Version 6</option>
+              <option value="2">Version 2</option>
+              <option value="8">Version 8</option>
             </select>
           </label>
-          <label class="control custom-namespace-control">
-            <span>Custom namespace</span>
-            <input id="namespace-input" spellcheck="false" value="6ba7b810-9dad-11d1-80b4-00c04fd430c8">
-          </label>
-          <label class="control">
-            <span>Name</span>
-            <input id="name-input" spellcheck="false" value="example.com">
-          </label>
-        </div>
 
-        <div class="control-set dce-controls">
+          <div class="control-set name-controls">
+            <label class="control">
+              <span>Namespace</span>
+              <select id="namespace-select">
+                <option value="dns" selected>DNS</option>
+                <option value="url">URL</option>
+                <option value="oid">OID</option>
+                <option value="x500">X.500</option>
+                <option value="none">None</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label class="control custom-namespace-control">
+              <span>Custom namespace</span>
+              <input id="namespace-input" spellcheck="false" value="6ba7b810-9dad-11d1-80b4-00c04fd430c8">
+            </label>
+            <label class="control">
+              <span>Name</span>
+              <input id="name-input" spellcheck="false" value="example.com">
+            </label>
+          </div>
+
+          <div class="control-set dce-controls">
+            <label class="control">
+              <span>Local domain</span>
+              <select id="local-domain-select">
+                <option value="0" selected>Person</option>
+                <option value="1">Group</option>
+                <option value="2">Organization</option>
+              </select>
+            </label>
+            <label class="control">
+              <span>Local identifier</span>
+              <input id="local-id-input" inputmode="numeric" spellcheck="false" value="1000">
+            </label>
+          </div>
+
+          <div class="control-set v7-controls">
+            <label class="control">
+              <span>rand_a</span>
+              <input id="rand-a-input" inputmode="numeric" spellcheck="false" placeholder="Random">
+            </label>
+            <label class="control">
+              <span>rand_b</span>
+              <input id="rand-b-input" inputmode="numeric" spellcheck="false" placeholder="Random">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="source-mode parse-mode">
+        <div class="control-grid parser-grid">
+          <label class="control parser-input">
+            <span>Input</span>
+            <input id="parse-input" spellcheck="false" placeholder="550e8400-e29b-41d4-a716-446655440000">
+          </label>
           <label class="control">
-            <span>Local domain</span>
-            <select id="local-domain-select">
-              <option value="0" selected>Person</option>
-              <option value="1">Group</option>
-              <option value="2">Organization</option>
+            <span>Format</span>
+            <select id="parse-format-select">
+              <option value="text" selected>UUID text</option>
+              <option value="base62">Base62</option>
             </select>
-          </label>
-          <label class="control">
-            <span>Local identifier</span>
-            <input id="local-id-input" inputmode="numeric" spellcheck="false" value="1000">
-          </label>
-        </div>
-
-        <div class="control-set v7-controls">
-          <label class="control">
-            <span>rand_a</span>
-            <input id="rand-a-input" inputmode="numeric" spellcheck="false" placeholder="Random">
-          </label>
-          <label class="control">
-            <span>rand_b</span>
-            <input id="rand-b-input" inputmode="numeric" spellcheck="false" placeholder="Random">
           </label>
         </div>
       </div>
 
-      <p class="panel-error" id="generate-error"></p>
+      <p class="panel-error" id="source-error"></p>
       <div class="output-line">
-        <code id="generated-standard"></code>
-        <div class="button-row">
-          <button id="use-generated-button" type="button">Use as input</button>
-          <button id="copy-generated-button" type="button">Copy</button>
+        <div class="output-text">
+          <span>Current UUID</span>
+          <code id="active-standard"></code>
+        </div>
+        <button id="copy-active-button" type="button">Copy</button>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="compare-section" id="compare-section" data-state="idle">
+        <div class="section-heading">
+          <h3>Compare</h3>
+          <p id="compare-status">Waiting</p>
+        </div>
+
+        <label class="control">
+          <span>Other UUID</span>
+          <input id="compare-input" spellcheck="false" value="ffffffff-ffff-ffff-ffff-ffffffffffff">
+        </label>
+        <p class="panel-error" id="compare-error"></p>
+        <div class="field-grid compact-fields">
+          <div class="field-row"><span>UUIDs.compare</span><code id="compare-unsigned"></code></div>
+          <div class="field-row"><span>UUID.compareTo</span><code id="compare-jdk"></code></div>
         </div>
       </div>
     </section>
@@ -143,54 +185,6 @@
         <div class="field-row"><span>DCE local id</span><code id="field-dce-local-id"></code></div>
         <div class="field-row"><span>rand_a</span><code id="field-rand-a"></code></div>
         <div class="field-row"><span>rand_b</span><code id="field-rand-b"></code></div>
-      </div>
-    </section>
-
-    <section class="panel parser-panel" id="parser-panel" data-state="idle">
-      <div class="panel-header">
-        <div>
-          <h2>Parser</h2>
-          <p id="parse-status">Waiting</p>
-        </div>
-      </div>
-
-      <div class="control-grid parser-grid">
-        <label class="control parser-input">
-          <span>Input</span>
-          <input id="parse-input" spellcheck="false" placeholder="550e8400-e29b-41d4-a716-446655440000">
-        </label>
-        <label class="control">
-          <span>Format</span>
-          <select id="parse-format-select">
-            <option value="text" selected>UUID text</option>
-            <option value="base62">Base62</option>
-          </select>
-        </label>
-      </div>
-
-      <p class="panel-error" id="parse-error"></p>
-      <div class="field-grid compact-fields">
-        <div class="field-row"><span>Standard</span><code id="parse-standard"></code></div>
-        <div class="field-row"><span>Base62</span><code id="parse-base62"></code></div>
-      </div>
-    </section>
-
-    <section class="panel compare-panel" id="compare-panel" data-state="idle">
-      <div class="panel-header">
-        <div>
-          <h2>Compare</h2>
-          <p id="compare-status">Waiting</p>
-        </div>
-      </div>
-
-      <label class="control">
-        <span>Other UUID</span>
-        <input id="compare-input" spellcheck="false" value="ffffffff-ffff-ffff-ffff-ffffffffffff">
-      </label>
-      <p class="panel-error" id="compare-error"></p>
-      <div class="field-grid compact-fields">
-        <div class="field-row"><span>UUIDs.compare</span><code id="compare-unsigned"></code></div>
-        <div class="field-row"><span>UUID.compareTo</span><code id="compare-jdk"></code></div>
       </div>
     </section>
   </main>
