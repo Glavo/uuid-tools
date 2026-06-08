@@ -9,8 +9,25 @@ comparing UUIDs.
 
 ## Add to Your Project
 
-Release artifacts have not been published yet. Until the first release is
-available, build the project from source and use the local artifact.
+Gradle:
+
+```kotlin
+dependencies {
+    implementation("org.glavo:uuid-tools:0.1.0")
+}
+```
+
+Maven:
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.glavo</groupId>
+        <artifactId>uuid-tools</artifactId>
+        <version>0.1.0</version>
+    </dependency>
+</dependencies>
+```
 
 ## Features
 
