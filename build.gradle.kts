@@ -6,6 +6,7 @@ import java.net.URLDecoder
 import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
     id("java-library")
@@ -158,7 +159,11 @@ tasks.register("serveWebsite") {
     doLast {
         val port = providers.gradleProperty("website.port").orElse("8080").get().toInt()
         val root = websiteOutputDir.get().asFile.toPath().toAbsolutePath().normalize()
-        val executor = Executors.newCachedThreadPool()
+        val executor = Executors.newCachedThreadPool { runnable ->
+            Thread(runnable, "uuid-tools-website-server").apply {
+                isDaemon = true
+            }
+        }
         val server = HttpServer.create(
             InetSocketAddress(InetAddress.getLoopbackAddress(), port),
             0,
@@ -223,15 +228,31 @@ tasks.register("serveWebsite") {
             }
         }
 
-        server.start()
-        Runtime.getRuntime().addShutdownHook(Thread {
-            server.stop(0)
-            executor.shutdownNow()
-        })
+        val stopped = AtomicBoolean(false)
 
-        println("Serving ${root.toUri()} at http://127.0.0.1:$port/")
-        println("Press Ctrl+C to stop.")
-        CountDownLatch(1).await()
+        fun stopServer() {
+            if (stopped.compareAndSet(false, true)) {
+                server.stop(0)
+                executor.shutdownNow()
+            }
+        }
+
+        val shutdownHook = Thread(::stopServer, "uuid-tools-website-server-shutdown")
+        Runtime.getRuntime().addShutdownHook(shutdownHook)
+
+        try {
+            server.start()
+            println("Serving ${root.toUri()} at http://127.0.0.1:$port/")
+            println("Press Ctrl+C to stop.")
+            CountDownLatch(1).await()
+        } finally {
+            stopServer()
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHook)
+            } catch (_: IllegalStateException) {
+                // The JVM is already shutting down.
+            }
+        }
     }
 }
 
