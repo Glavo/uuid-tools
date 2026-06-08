@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
     id("java-library")
+    id("jacoco")
     id("maven-publish")
     id("signing")
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
@@ -109,6 +110,16 @@ tasks.named<JavaCompile>(teavmSourceSet.compileJavaTaskName) {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required.set(true)
+        csv.required.set(true)
+        html.required.set(true)
+    }
 }
 
 tasks.register<JavaExec>("benchmark") {
