@@ -262,6 +262,144 @@ class UUIDsComprehensivePortedTest {
         assertEquals(2, v8.variant());
     }
 
+    /// Checks exact UUID states at each constructor's all-zero and all-one
+    /// boundaries.
+    @Test
+    void constructorsProduceExactBoundaryStates() {
+        assertEquals(UUID.fromString("00000000-0000-1000-8000-000000000000"),
+                UUIDs.v1(0L, 0, 0L));
+        assertEquals(UUID.fromString("ffffffff-ffff-1fff-bfff-ffffffffffff"),
+                UUIDs.v1(-1L, -1, -1L));
+
+        assertEquals(UUID.fromString("00000000-0000-2000-8000-000000000000"),
+                UUIDs.v2(0L, 0, 0L, 0, 0L));
+        assertEquals(UUID.fromString("ffffffff-ffff-2fff-bfff-ffffffffffff"),
+                UUIDs.v2(-1L, -1, -1L, -1, -1L));
+
+        assertEquals(UUID.fromString("00000000-0000-6000-8000-000000000000"),
+                UUIDs.v6(0L, 0, 0L));
+        assertEquals(UUID.fromString("ffffffff-ffff-6fff-bfff-ffffffffffff"),
+                UUIDs.v6(-1L, -1, -1L));
+
+        assertEquals(UUID.fromString("00000000-0000-7000-8000-000000000000"),
+                UUIDs.v7(0L, 0, 0L));
+        assertEquals(UUID.fromString("ffffffff-ffff-7fff-bfff-ffffffffffff"),
+                UUIDs.v7(-1L, -1, -1L));
+
+        assertEquals(UUID.fromString("00000000-0000-8000-8000-000000000000"),
+                UUIDs.v8(0L, 0L));
+        assertEquals(UUID.fromString("ffffffff-ffff-8fff-bfff-ffffffffffff"),
+                UUIDs.v8(-1L, -1L));
+
+        assertEquals(UUID.fromString("ffffffff-ffff-0fff-bfff-ffffffffffff"),
+                UUIDs.newWithVersion(-1L, -1L, 0));
+        assertEquals(UUID.fromString("ffffffff-ffff-ffff-bfff-ffffffffffff"),
+                UUIDs.newWithVersion(-1L, -1L, -1));
+    }
+
+    /// Checks timestamp extraction at the Gregorian and Unix epoch boundaries,
+    /// and at the largest encodable timestamp for version-1 and version-6.
+    @Test
+    void timestampAccessorsHandleBoundaryStates() {
+        Instant gregorianEpoch = Instant.parse("1582-10-15T00:00:00Z");
+        Instant maximumGregorianInstant = Instant.parse("5236-03-31T21:21:00.684697500Z");
+        long maximumV7Millis = (1L << 48) - 1L;
+
+        for (UUID uuid : new UUID[]{UUIDs.v1(0L, 0, 0L), UUIDs.v6(0L, 0, 0L)}) {
+            assertEquals(0L, UUIDs.getGregorianTimestamp(uuid));
+            assertEquals(gregorianEpoch, UUIDs.getInstant(uuid));
+            assertEquals(gregorianEpoch.toEpochMilli(), UUIDs.getUnixTimestampMillis(uuid));
+        }
+
+        for (UUID uuid : new UUID[]{
+                UUIDs.v1(GREGORIAN_TIMESTAMP_MASK, 0, 0L),
+                UUIDs.v6(GREGORIAN_TIMESTAMP_MASK, 0, 0L),
+        }) {
+            assertEquals(GREGORIAN_TIMESTAMP_MASK, UUIDs.getGregorianTimestamp(uuid));
+            assertEquals(maximumGregorianInstant, UUIDs.getInstant(uuid));
+            assertEquals(maximumGregorianInstant.toEpochMilli(), UUIDs.getUnixTimestampMillis(uuid));
+        }
+
+        assertEquals(Instant.EPOCH, UUIDs.getInstant(UUIDs.v7(0L, 0, 0L)));
+        assertEquals(0L, UUIDs.getUnixTimestampMillis(UUIDs.v7(0L, 0, 0L)));
+        assertEquals(Instant.ofEpochMilli(maximumV7Millis), UUIDs.getInstant(UUIDs.v7(-1L, 0, 0L)));
+        assertEquals(maximumV7Millis, UUIDs.getUnixTimestampMillis(UUIDs.v7(-1L, 0, 0L)));
+    }
+
+    /// Checks field states immediately around version-7 payload boundaries.
+    @Test
+    void version7PayloadAccessorsHandleBoundaryStates() {
+        UUID minimum = UUIDs.v7(0L, 0, 0L);
+        UUID maximum = UUIDs.v7(-1L, -1, -1L);
+
+        assertEquals(0L, UUIDs.getUnixTimestampMillis(minimum));
+        assertEquals(0, UUIDs.getV7RandA(minimum));
+        assertEquals(0L, UUIDs.getV7RandB(minimum));
+
+        assertEquals((1L << 48) - 1L, UUIDs.getUnixTimestampMillis(maximum));
+        assertEquals(0xFFF, UUIDs.getV7RandA(maximum));
+        assertEquals(-1L >>> 2, UUIDs.getV7RandB(maximum));
+
+        assertEquals(0, UUIDs.getV7RandA(UUIDs.v7(0L, 0x1000, 0L)));
+        assertEquals(1, UUIDs.getV7RandA(UUIDs.v7(0L, 0x1001, 0L)));
+        assertEquals(0L, UUIDs.getV7RandB(UUIDs.v7(0L, 0, 1L << 62)));
+        assertEquals(1L, UUIDs.getV7RandB(UUIDs.v7(0L, 0, (1L << 62) + 1L)));
+    }
+
+    /// Accepts byte-array windows at the first and last possible offsets while
+    /// preserving bytes outside the UUID window.
+    @Test
+    void byteConversionAcceptsBoundaryOffsets() {
+        UUID uuid = UUID.fromString("01234567-89ab-4def-a123-456789abcdef");
+        byte[] expected = UUIDs.toBytes(uuid);
+        byte[] leadingWindow = new byte[20];
+        byte[] trailingWindow = new byte[20];
+
+        leadingWindow[16] = 0x55;
+        leadingWindow[17] = 0x66;
+        leadingWindow[18] = 0x77;
+        leadingWindow[19] = 0x11;
+        UUIDs.toBytes(uuid, leadingWindow, 0);
+        assertEquals(0x55, leadingWindow[16]);
+        assertEquals(0x66, leadingWindow[17]);
+        assertEquals(0x77, leadingWindow[18]);
+        assertEquals(0x11, leadingWindow[19]);
+        assertEquals(uuid, UUIDs.fromBytes(leadingWindow, 0));
+
+        trailingWindow[0] = 0x55;
+        trailingWindow[1] = 0x66;
+        trailingWindow[2] = 0x77;
+        trailingWindow[3] = 0x11;
+        UUIDs.toBytes(uuid, trailingWindow, 4);
+        assertEquals(0x55, trailingWindow[0]);
+        assertEquals(0x66, trailingWindow[1]);
+        assertEquals(0x77, trailingWindow[2]);
+        assertEquals(0x11, trailingWindow[3]);
+        assertEquals(uuid, UUIDs.fromBytes(trailingWindow, 4));
+
+        byte[] actual = new byte[16];
+        System.arraycopy(trailingWindow, 4, actual, 0, actual.length);
+        assertArrayEquals(expected, actual);
+    }
+
+    /// Consumes byte buffers correctly when their remaining window is empty or
+    /// positioned at the end of a larger backing array.
+    @Test
+    void nameBasedByteBuffersHandleBoundaryWindows() {
+        ByteBuffer empty = ByteBuffer.allocate(8);
+        empty.position(8);
+        assertEquals(UUIDs.generateV3(UUIDs.NAMESPACE_DNS, new byte[0]),
+                UUIDs.generateV3(UUIDs.NAMESPACE_DNS, empty));
+        assertEquals(8, empty.position());
+
+        byte[] bytes = {0x55, 0x66, 0x77, 'n', 'a', 'm', 'e'};
+        ByteBuffer tail = ByteBuffer.wrap(bytes);
+        tail.position(3);
+        assertEquals(UUIDs.generateV5(UUIDs.NAMESPACE_DNS, new byte[]{'n', 'a', 'm', 'e'}),
+                UUIDs.generateV5(UUIDs.NAMESPACE_DNS, tail));
+        assertEquals(tail.limit(), tail.position());
+    }
+
     /// Checks the unsigned comparison contract against `BigInteger`,
     /// canonical text order, and comparator ordering.
     @Test
