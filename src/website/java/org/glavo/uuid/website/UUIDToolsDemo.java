@@ -11,7 +11,10 @@ import org.teavm.jso.JSBody;
 import org.teavm.jso.JSFunctor;
 import org.teavm.jso.JSObject;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 /// TeaVM entry point for the interactive uuid-tools demo website.
@@ -139,9 +142,9 @@ public final class UUIDToolsDemo {
                     parseUnsignedValue("local-id-input", 0xFFFF_FFFFL, "local identifier"),
                     randomDceClockSequence(),
                     randomNode());
-            case 3 -> UUIDs.generateV3(readNamespace(), readNameBytes());
+            case 3 -> generateV3(readNamespace(), readNameBytes());
             case 4 -> UUIDs.v4(randomLong(), randomLong());
-            case 5 -> UUIDs.generateV5(readNamespace(), readValue("name-input"));
+            case 5 -> generateV5(readNamespace(), readNameBytes());
             case 6 -> UUIDs.v6(currentGregorianTimestamp(), randomClockSequence(), randomNode());
             case 7 -> UUIDs.v7(
                     currentEpochMillis(),
@@ -231,7 +234,7 @@ public final class UUIDToolsDemo {
         setField("field-compact", UUIDs.toCompactString(uuid), "value");
         setField("field-urn", UUIDs.toURNString(uuid), "value");
         setField("field-base62", UUIDs.toBase62String(uuid), "value");
-        setField("field-oid", UUIDs.toOIDString(uuid), "value");
+        setField("field-oid", toOIDString(uuid), "value");
         setField("field-bytes", bytesToHex(uuid), "value");
         setField("field-msb", "0x" + lowerHex(uuid.getMostSignificantBits(), 16), "value");
         setField("field-lsb", "0x" + lowerHex(uuid.getLeastSignificantBits(), 16), "value");
@@ -318,6 +321,55 @@ public final class UUIDToolsDemo {
     /// @return UTF-8 encoded name bytes
     private static byte[] readNameBytes() {
         return readValue("name-input").getBytes(StandardCharsets.UTF_8);
+    }
+
+    /// Generates a version-3 UUID from a namespace and UTF-8 name bytes.
+    ///
+    /// @param namespace the namespace UUID, or `null` for no namespace
+    /// @param name the name bytes
+    /// @return the generated UUID
+    private static UUID generateV3(@Nullable UUID namespace, byte[] name) {
+        MessageDigest digest = getDigest("MD5");
+        feedNamespace(digest, namespace);
+        digest.update(name);
+        return UUIDs.v3(digest.digest());
+    }
+
+    /// Generates a version-5 UUID from a namespace and UTF-8 name bytes.
+    ///
+    /// @param namespace the namespace UUID, or `null` for no namespace
+    /// @param name the name bytes
+    /// @return the generated UUID
+    private static UUID generateV5(@Nullable UUID namespace, byte[] name) {
+        MessageDigest digest = getDigest("SHA-1");
+        feedNamespace(digest, namespace);
+        digest.update(name);
+        return UUIDs.v5(digest.digest());
+    }
+
+    /// Feeds namespace UUID bytes into a digest.
+    ///
+    /// @param digest the target digest
+    /// @param namespace the namespace UUID, or `null` for no namespace
+    private static void feedNamespace(MessageDigest digest, @Nullable UUID namespace) {
+        if (namespace != null) {
+            byte[] bytes = new byte[UUID_BYTE_LENGTH];
+            writeLongBigEndian(bytes, 0, namespace.getMostSignificantBits());
+            writeLongBigEndian(bytes, 8, namespace.getLeastSignificantBits());
+            digest.update(bytes);
+        }
+    }
+
+    /// Returns a message digest for a required algorithm.
+    ///
+    /// @param algorithm the digest algorithm name
+    /// @return the message digest
+    private static MessageDigest getDigest(String algorithm) {
+        try {
+            return MessageDigest.getInstance(algorithm);
+        } catch (NoSuchAlgorithmException e) {
+            throw new InternalError("Missing algorithm: " + algorithm, e);
+        }
     }
 
     /// Reads an optional version-7 `rand_a` value.
@@ -449,6 +501,29 @@ public final class UUIDToolsDemo {
         appendLongBytes(out, uuid.getMostSignificantBits());
         appendLongBytes(out, uuid.getLeastSignificantBits());
         return out.toString();
+    }
+
+    /// Formats a UUID as an OID under the `2.25` arc.
+    ///
+    /// @param uuid the UUID to format
+    /// @return the OID string
+    private static String toOIDString(UUID uuid) {
+        byte[] bytes = new byte[UUID_BYTE_LENGTH + 1];
+        writeLongBigEndian(bytes, 1, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, 9, uuid.getLeastSignificantBits());
+        return "2.25." + new BigInteger(bytes);
+    }
+
+    /// Writes a long value as eight big-endian bytes.
+    ///
+    /// @param bytes the destination bytes
+    /// @param offset the destination offset
+    /// @param value the value to write
+    private static void writeLongBigEndian(byte[] bytes, int offset, long value) {
+        for (int i = 7; i >= 0; i--) {
+            bytes[offset + i] = (byte) value;
+            value >>>= Byte.SIZE;
+        }
     }
 
     /// Appends a long value as eight big-endian bytes.

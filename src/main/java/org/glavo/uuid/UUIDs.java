@@ -530,8 +530,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static String toOIDString(UUID uuid) {
         byte[] bytes = new byte[17]; // 1 extra byte for unsigned interpretation
-        writeLongBigEndianByShift(bytes, 1, uuid.getMostSignificantBits());
-        writeLongBigEndianByShift(bytes, 9, uuid.getLeastSignificantBits());
+        writeLongBigEndian(bytes, 1, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, 9, uuid.getLeastSignificantBits());
         return "2.25." + new BigInteger(bytes);
     }
 
@@ -1460,8 +1460,8 @@ public final class UUIDs {
     /// Feeds a UUID's 16 big-endian bytes into a digest.
     private static void feedUUID(MessageDigest digest, UUID uuid) {
         byte[] bytes = new byte[16];
-        writeLongBigEndianByShift(bytes, 0, uuid.getMostSignificantBits());
-        writeLongBigEndianByShift(bytes, 8, uuid.getLeastSignificantBits());
+        writeLongBigEndian(bytes, 0, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, 8, uuid.getLeastSignificantBits());
         digest.update(bytes);
     }
 
@@ -1473,14 +1473,6 @@ public final class UUIDs {
     /// Writes a 64-bit value in big-endian byte order.
     private static void writeLongBigEndian(byte[] bytes, int offset, long value) {
         ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.set(bytes, offset, value);
-    }
-
-    /// Writes a 64-bit value in big-endian byte order without using VarHandle.
-    private static void writeLongBigEndianByShift(byte[] bytes, int offset, long value) {
-        for (int i = 7; i >= 0; i--) {
-            bytes[offset + i] = (byte) value;
-            value >>>= Byte.SIZE;
-        }
     }
 
     /// Appends the low bits of a value as fixed-width lowercase hexadecimal.
