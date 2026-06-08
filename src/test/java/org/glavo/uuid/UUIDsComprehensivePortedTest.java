@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.SplittableRandom;
 import java.util.UUID;
 
@@ -111,6 +112,86 @@ class UUIDsComprehensivePortedTest {
         }
 
         assertThrows(NullPointerException.class, () -> UUIDs.parse(null));
+    }
+
+    /// Parses deterministic random UUIDs from every supported text form and
+    /// verifies related compact encodings.
+    @Test
+    void parseRoundTripsRandomSupportedTextForms() {
+        SplittableRandom random = new SplittableRandom(0x9A65_0001L);
+        for (int i = 0; i < DEFAULT_LOOP_MAX; i++) {
+            UUID uuid = nextUuid(random);
+            String standard = uuid.toString();
+            String compact = UUIDs.toCompactString(uuid);
+            String urn = UUIDs.toURNString(uuid);
+            String base62 = UUIDs.toBase62String(uuid);
+
+            assertEquals(uuid, UUIDs.parse(standard));
+            assertEquals(uuid, UUIDs.parse(standard.toUpperCase(Locale.ROOT)));
+            assertEquals(uuid, UUIDs.parse(compact));
+            assertEquals(uuid, UUIDs.parse(compact.toUpperCase(Locale.ROOT)));
+            assertEquals(uuid, UUIDs.parse("{" + standard + "}"));
+            assertEquals(uuid, UUIDs.parse("{" + standard.toUpperCase(Locale.ROOT) + "}"));
+            assertEquals(uuid, UUIDs.parse(urn));
+            assertEquals(uuid, UUIDs.parse("URN:UUID:" + standard.toUpperCase(Locale.ROOT)));
+
+            assertThrows(IllegalArgumentException.class, () -> UUIDs.parse(base62));
+            assertEquals(uuid, UUIDs.parseBase62(base62));
+            assertEquals("2.25." + unsignedValue(uuid), UUIDs.toOIDString(uuid));
+        }
+    }
+
+    /// Rejects deterministic random UUID text after single-character
+    /// corruption in structural and hexadecimal positions.
+    @Test
+    void parseRejectsRandomSingleCharacterMutations() {
+        SplittableRandom random = new SplittableRandom(0x9A65_0002L);
+        for (int i = 0; i < DEFAULT_LOOP_MAX; i++) {
+            UUID uuid = nextUuid(random);
+            String standard = uuid.toString();
+            String compact = UUIDs.toCompactString(uuid);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> UUIDs.parse(corruptStandardText(standard, random.nextInt(standard.length()))));
+            assertThrows(IllegalArgumentException.class,
+                    () -> UUIDs.parse(corruptCompactText(compact, random.nextInt(compact.length()))));
+            assertThrows(IllegalArgumentException.class,
+                    () -> UUIDs.parse("[" + standard + "}"));
+            assertThrows(IllegalArgumentException.class,
+                    () -> UUIDs.parse("{" + standard + "]"));
+            assertThrows(IllegalArgumentException.class,
+                    () -> UUIDs.parse("xrn:uuid:" + standard));
+            assertThrows(IllegalArgumentException.class,
+                    () -> UUIDs.parse("urn:uuid:" + corruptStandardText(standard, random.nextInt(standard.length()))));
+        }
+    }
+
+    /// Converts deterministic random UUIDs through random byte-array windows
+    /// while preserving bytes outside the window.
+    @Test
+    void binaryConversionRoundTripsRandomWindows() {
+        SplittableRandom random = new SplittableRandom(0x9A65_0003L);
+        for (int i = 0; i < DEFAULT_LOOP_MAX; i++) {
+            UUID uuid = nextUuid(random);
+            int length = 16 + random.nextInt(33);
+            int offset = random.nextInt(length - 15);
+            byte[] bytes = randomBytes(random, length);
+            byte[] original = bytes.clone();
+            byte[] expectedUuidBytes = UUIDs.toBytes(uuid);
+
+            UUIDs.toBytes(uuid, bytes, offset);
+
+            for (int j = 0; j < offset; j++) {
+                assertEquals(original[j], bytes[j]);
+            }
+            for (int j = offset + 16; j < bytes.length; j++) {
+                assertEquals(original[j], bytes[j]);
+            }
+            for (int j = 0; j < expectedUuidBytes.length; j++) {
+                assertEquals(expectedUuidBytes[j], bytes[offset + j]);
+            }
+            assertEquals(uuid, UUIDs.fromBytes(bytes, offset));
+        }
     }
 
     /// Constructs version-1 UUIDs with the same optional arguments as
@@ -478,6 +559,33 @@ class UUIDsComprehensivePortedTest {
     /// Creates a deterministic UUID from a random source.
     private static UUID nextUuid(SplittableRandom random) {
         return new UUID(random.nextLong(), random.nextLong());
+    }
+
+    /// Creates deterministic random bytes.
+    private static byte[] randomBytes(SplittableRandom random, int length) {
+        byte[] bytes = new byte[length];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) random.nextInt(256);
+        }
+        return bytes;
+    }
+
+    /// Corrupts a standard UUID string at the requested position.
+    private static String corruptStandardText(String text, int index) {
+        char replacement = text.charAt(index) == '-' ? '0' : 'g';
+        return replaceChar(text, index, replacement);
+    }
+
+    /// Corrupts a compact UUID string at the requested position.
+    private static String corruptCompactText(String text, int index) {
+        return replaceChar(text, index, 'g');
+    }
+
+    /// Returns a copy of a string with one character replaced.
+    private static String replaceChar(String text, int index, char replacement) {
+        char[] chars = text.toCharArray();
+        chars[index] = replacement;
+        return new String(chars);
     }
 
     /// Creates an instant whose nanosecond value is exactly representable in
