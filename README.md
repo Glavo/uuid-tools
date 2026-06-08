@@ -1,5 +1,9 @@
 # uuid-tools
 
+[![Gradle Check](https://github.com/Glavo/uuid-tools/actions/workflows/check.yml/badge.svg)](https://github.com/Glavo/uuid-tools/actions/workflows/check.yml)
+[![codecov](https://codecov.io/gh/Glavo/uuid-tools/graph/badge.svg)](https://codecov.io/gh/Glavo/uuid-tools)
+![Java](https://img.shields.io/badge/Java-17%2B-blue)
+
 A lightweight Java UUID utility library for generating, parsing, formatting, and
 comparing UUIDs.
 
