@@ -74,6 +74,7 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("com.github.f4b6a3:uuid-creator:6.1.1")
     testCompileOnly("org.jetbrains:annotations:26.1.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
