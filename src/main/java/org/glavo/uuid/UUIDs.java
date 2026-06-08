@@ -516,7 +516,7 @@ public final class UUIDs {
             word3 = dividend / 62L;
             buf[i] = BASE62_CHARS[(int) (dividend % 62L)];
         }
-        return new String(buf);
+        return new String(buf, StandardCharsets.ISO_8859_1);
     }
 
     /// Formats the UUID as an OID under the joint ISO/ITU-T UUID arc `2.25`.
