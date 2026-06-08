@@ -43,8 +43,8 @@ These rules apply to all Java code written or modified in this repository.
 
 ## Gradle
 
-- When invoking Gradle in this repository, always set `GRADLE_USER_HOME` to the workspace-local `.gradle-user-home` directory.
-- Prefer commands such as `./gradlew -g .gradle-user-home ...` or the equivalent environment-variable-based configuration.
+- When Codex invokes Gradle locally in this repository, set `GRADLE_USER_HOME` to the workspace-local `.gradle-user-home` directory.
+- This local execution constraint is for Codex commands only. Do not add `.gradle-user-home`, `-g .gradle-user-home`, or equivalent sandbox-specific settings to project documentation, examples, scripts, CI workflows, or user-facing commands.
 - When running Gradle `test` tasks, use a higher timeout of ten minutes.
 
 ## Commit Messages

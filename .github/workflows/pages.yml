@@ -33,7 +33,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v5
-      - run: ./gradlew -g .gradle-user-home buildWebsite --info --no-daemon --stacktrace
+      - run: ./gradlew buildWebsite --info --no-daemon --stacktrace
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

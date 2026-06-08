@@ -216,7 +216,7 @@ The repository includes a static TeaVM/Wasm GC demo website for trying the core
 UUID APIs in a browser.
 
 ```shell
-./gradlew -g .gradle-user-home buildWebsite
+./gradlew buildWebsite
 ```
 
 The generated website is written to `build/website`. Serve that directory over
@@ -225,7 +225,7 @@ HTTP so the browser can load the WebAssembly module.
 For local development, Gradle can also build and serve the website:
 
 ```shell
-./gradlew -g .gradle-user-home serveWebsite
+./gradlew serveWebsite
 ```
 
 The server listens on `http://127.0.0.1:8080/` by default. Use
