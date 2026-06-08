@@ -530,8 +530,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static String toOIDString(UUID uuid) {
         byte[] bytes = new byte[17]; // 1 extra byte for unsigned interpretation
-        writeLongBigEndian(bytes, 1, uuid.getMostSignificantBits());
-        writeLongBigEndian(bytes, 9, uuid.getLeastSignificantBits());
+        writeLongBigEndianByShift(bytes, 1, uuid.getMostSignificantBits());
+        writeLongBigEndianByShift(bytes, 9, uuid.getLeastSignificantBits());
         return "2.25." + new BigInteger(bytes);
     }
 
@@ -564,8 +564,8 @@ public final class UUIDs {
     @Contract(mutates = "param2")
     public static void toBytes(UUID uuid, byte[] bytes, int offset) {
         Objects.checkFromIndexSize(offset, 16, bytes.length);
-        ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.set(bytes, offset, uuid.getMostSignificantBits());
-        ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.set(bytes, offset + 8, uuid.getLeastSignificantBits());
+        writeLongBigEndian(bytes, offset, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, offset + 8, uuid.getLeastSignificantBits());
     }
 
     /// Creates a UUID from a 16-byte big-endian representation.
@@ -591,8 +591,8 @@ public final class UUIDs {
     @Contract(pure = true)
     public static UUID fromBytes(byte[] bytes, int offset) {
         Objects.checkFromIndexSize(offset, 16, bytes.length);
-        long msb = (long) ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.get(bytes, offset);
-        long lsb = (long) ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.get(bytes, offset + 8);
+        long msb = readLongBigEndian(bytes, offset);
+        long lsb = readLongBigEndian(bytes, offset + 8);
         return new UUID(msb, lsb);
     }
 
@@ -1460,13 +1460,23 @@ public final class UUIDs {
     /// Feeds a UUID's 16 big-endian bytes into a digest.
     private static void feedUUID(MessageDigest digest, UUID uuid) {
         byte[] bytes = new byte[16];
-        writeLongBigEndian(bytes, 0, uuid.getMostSignificantBits());
-        writeLongBigEndian(bytes, 8, uuid.getLeastSignificantBits());
+        writeLongBigEndianByShift(bytes, 0, uuid.getMostSignificantBits());
+        writeLongBigEndianByShift(bytes, 8, uuid.getLeastSignificantBits());
         digest.update(bytes);
+    }
+
+    /// Reads a 64-bit value in big-endian byte order.
+    private static long readLongBigEndian(byte[] bytes, int offset) {
+        return (long) ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.get(bytes, offset);
     }
 
     /// Writes a 64-bit value in big-endian byte order.
     private static void writeLongBigEndian(byte[] bytes, int offset, long value) {
+        ByteArrayLongViewHolder.BYTE_ARRAY_LONG_VIEW.set(bytes, offset, value);
+    }
+
+    /// Writes a 64-bit value in big-endian byte order without using VarHandle.
+    private static void writeLongBigEndianByShift(byte[] bytes, int offset, long value) {
         for (int i = 7; i >= 0; i--) {
             bytes[offset + i] = (byte) value;
             value >>>= Byte.SIZE;
