@@ -162,31 +162,65 @@ public final class UUIDs {
     // Constants
     // ========================================================================
 
-    /// All-zero UUID (`00000000-0000-0000-0000-000000000000`). RFC 9562 § 5.9.
+    /// All-zero UUID (`00000000-0000-0000-0000-000000000000`).
+    ///
+    /// RFC 9562 defines this as the nil UUID. It is useful as a sentinel value
+    /// when an all-zero UUID has a defined meaning in a protocol or data model.
+    /// See [#isNil(UUID)].
     public static final UUID NIL = new UUID(0L, 0L);
 
-    /// All-one UUID (`ffffffff-ffff-ffff-ffff-ffffffffffff`). RFC 9562 § 5.10.
+    /// All-one UUID (`ffffffff-ffff-ffff-ffff-ffffffffffff`).
+    ///
+    /// RFC 9562 defines this as the max UUID. It is useful as an upper-bound
+    /// sentinel when UUIDs are treated as unsigned 128-bit values. See
+    /// [#isMax(UUID)] and [#compare(UUID, UUID)].
     public static final UUID MAX = new UUID(-1L, -1L);
 
-    /// DNS namespace UUID (`6ba7b810-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
+    /// DNS namespace UUID (`6ba7b810-9dad-11d1-80b4-00c04fd430c8`).
+    ///
+    /// Use this namespace with [#generateV3(UUID, String)] or
+    /// [#generateV5(UUID, String)] when the name is a fully qualified domain
+    /// name such as `example.com`.
     public static final UUID NAMESPACE_DNS = new UUID(0x6ba7b8109dad11d1L, 0x80b400c04fd430c8L);
 
-    /// URL namespace UUID (`6ba7b811-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
+    /// URL namespace UUID (`6ba7b811-9dad-11d1-80b4-00c04fd430c8`).
+    ///
+    /// Use this namespace with [#generateV3(UUID, String)] or
+    /// [#generateV5(UUID, String)] when the name is a URL.
     public static final UUID NAMESPACE_URL = new UUID(0x6ba7b8119dad11d1L, 0x80b400c04fd430c8L);
 
-    /// OID namespace UUID (`6ba7b812-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
+    /// OID namespace UUID (`6ba7b812-9dad-11d1-80b4-00c04fd430c8`).
+    ///
+    /// Use this namespace with [#generateV3(UUID, String)] or
+    /// [#generateV5(UUID, String)] when the name is an ISO object identifier.
     public static final UUID NAMESPACE_OID = new UUID(0x6ba7b8129dad11d1L, 0x80b400c04fd430c8L);
 
-    /// X.500 DN namespace UUID (`6ba7b814-9dad-11d1-80b4-00c04fd430c8`). RFC 9562 § 6.6.
+    /// X.500 DN namespace UUID (`6ba7b814-9dad-11d1-80b4-00c04fd430c8`).
+    ///
+    /// Use this namespace with [#generateV3(UUID, String)] or
+    /// [#generateV5(UUID, String)] when the name is an X.500 distinguished
+    /// name.
     public static final UUID NAMESPACE_X500 = new UUID(0x6ba7b8149dad11d1L, 0x80b400c04fd430c8L);
 
     /// DCE Security local domain for person identifiers, such as POSIX UIDs.
+    ///
+    /// Pass this value to [#generateV2(int, long)] or
+    /// [#v2(long, int, long, int, long)] when creating a version-2 UUID whose
+    /// local identifier represents a person.
     public static final int DCE_DOMAIN_PERSON = 0;
 
     /// DCE Security local domain for group identifiers, such as POSIX GIDs.
+    ///
+    /// Pass this value to [#generateV2(int, long)] or
+    /// [#v2(long, int, long, int, long)] when creating a version-2 UUID whose
+    /// local identifier represents a group.
     public static final int DCE_DOMAIN_GROUP = 1;
 
     /// DCE Security local domain for organization identifiers.
+    ///
+    /// Pass this value to [#generateV2(int, long)] or
+    /// [#v2(long, int, long, int, long)] when creating a version-2 UUID whose
+    /// local identifier represents an organization.
     public static final int DCE_DOMAIN_ORG = 2;
 
     // ========================================================================
