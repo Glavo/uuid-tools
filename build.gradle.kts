@@ -122,6 +122,25 @@ tasks.jacocoTestReport {
     }
 }
 
+tasks.withType<Javadoc> {
+    (options as StandardJavadocDocletOptions).also {
+        it.jFlags!!.addAll(listOf("-Duser.language=en", "-Duser.country=", "-Duser.variant="))
+
+        it.encoding("UTF-8")
+        it.addStringOption("link", "https://docs.oracle.com/en/java/javase/25/docs/api/")
+        it.addBooleanOption("html5", true)
+        it.addStringOption("Xdoclint:none", "-quiet")
+
+        it.tags!!.addAll(
+            listOf(
+                "apiNote:a:API Note:",
+                "implNote:a:Implementation Note:",
+                "implSpec:a:Implementation Specification:",
+            )
+        )
+    }
+}
+
 tasks.register<JavaExec>("benchmark") {
     group = "verification"
     description = "Runs the JMH benchmarks."
