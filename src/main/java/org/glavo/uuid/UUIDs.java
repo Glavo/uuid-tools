@@ -1369,6 +1369,23 @@ public final class UUIDs {
 
     /// Shared lightweight generator used by default UUID generation methods.
     ///
+    /// The singleton instance is seeded from [SecureRandom] when this nested
+    /// record is initialized. It keeps a 128-bit SipHash key, a 64-bit output
+    /// mask, and an atomic 64-bit counter. Each call hashes a distinct counter
+    /// value with SipHash-2-4 and applies the output mask before returning the
+    /// 64-bit result.
+    ///
+    /// The atomic counter makes calls thread-safe and gives concurrent callers
+    /// distinct SipHash input blocks until the counter wraps. The output mask
+    /// separates otherwise identical seeded streams, but it does not add UUID
+    /// payload bits or change the collision space of a UUID version.
+    ///
+    /// This generator is intended for ordinary UUID generation with small state
+    /// and no per-call [SecureRandom] cost. It is not documented as a
+    /// cryptographic random source; callers that need cryptographic random
+    /// guarantees should pass a [SecureRandom] to the public overloads that
+    /// accept a [RandomGenerator].
+    ///
     /// @param key0    First SipHash key half.
     /// @param key1    Second SipHash key half.
     /// @param xorMask Per-instance output mask applied after SipHash.
