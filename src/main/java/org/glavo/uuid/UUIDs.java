@@ -744,6 +744,28 @@ public final class UUIDs {
         return generateV1(InstantSource.system(), randomGenerator);
     }
 
+    /// Generates a version-1 UUID from the given instant and default random source.
+    ///
+    /// @param instant the timestamp instant
+    /// @return a version-1 UUID
+    /// @since 0.2.0
+    public static UUID generateV1(Instant instant) {
+        return generateV1(instant, DefaultRandomGenerator.INSTANCE);
+    }
+
+    /// Generates a version-1 UUID from the given instant and random generator.
+    ///
+    /// The clock sequence and node are drawn from `randomGenerator`. The node
+    /// has its multicast bit set to indicate a non-IEEE random node.
+    ///
+    /// @param instant         the timestamp instant
+    /// @param randomGenerator the source of randomness
+    /// @return a version-1 UUID
+    /// @since 0.2.0
+    public static UUID generateV1(Instant instant, RandomGenerator randomGenerator) {
+        return v1(instant, randomClockSequence(randomGenerator), randomNode(randomGenerator));
+    }
+
     /// Generates a version-1 UUID from the given time source and default random source.
     ///
     /// @param instantSource the source of the current time
@@ -761,7 +783,7 @@ public final class UUIDs {
     /// @param randomGenerator the source of randomness
     /// @return a version-1 UUID
     public static UUID generateV1(InstantSource instantSource, RandomGenerator randomGenerator) {
-        return v1(instantSource.instant(), randomClockSequence(randomGenerator), randomNode(randomGenerator));
+        return generateV1(instantSource.instant(), randomGenerator);
     }
 
     // ========================================================================
@@ -1028,6 +1050,28 @@ public final class UUIDs {
         return generateV6(InstantSource.system(), randomGenerator);
     }
 
+    /// Generates a version-6 UUID from the given instant and default random source.
+    ///
+    /// @param instant the timestamp instant
+    /// @return a version-6 UUID
+    /// @since 0.2.0
+    public static UUID generateV6(Instant instant) {
+        return generateV6(instant, DefaultRandomGenerator.INSTANCE);
+    }
+
+    /// Generates a version-6 UUID from the given instant and random generator.
+    ///
+    /// The clock sequence and node are drawn from `randomGenerator`. The node
+    /// has its multicast bit set to indicate a non-IEEE random node.
+    ///
+    /// @param instant         the timestamp instant
+    /// @param randomGenerator the source of randomness
+    /// @return a version-6 UUID
+    /// @since 0.2.0
+    public static UUID generateV6(Instant instant, RandomGenerator randomGenerator) {
+        return v6(instant, randomClockSequence(randomGenerator), randomNode(randomGenerator));
+    }
+
     /// Generates a version-6 UUID from the given time source and default random source.
     ///
     /// @param instantSource the source of the current time
@@ -1045,7 +1089,7 @@ public final class UUIDs {
     /// @param randomGenerator the source of randomness
     /// @return a version-6 UUID
     public static UUID generateV6(InstantSource instantSource, RandomGenerator randomGenerator) {
-        return v6(instantSource.instant(), randomClockSequence(randomGenerator), randomNode(randomGenerator));
+        return generateV6(instantSource.instant(), randomGenerator);
     }
 
     // ========================================================================
@@ -1122,6 +1166,37 @@ public final class UUIDs {
         return generateV7(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
+    /// Generates a version-7 UUID from the given instant and default random source.
+    ///
+    /// @param instant the timestamp instant
+    /// @return a version-7 UUID
+    /// @since 0.2.0
+    public static UUID generateV7(Instant instant) {
+        return generateV7(instant, DefaultRandomGenerator.INSTANCE);
+    }
+
+    /// Generates a version-7 UUID from the given instant and random generator.
+    ///
+    /// The timestamp is obtained from `instant`, and the random payload is
+    /// obtained from `randomGenerator`.
+    ///
+    /// @param instant         the timestamp instant
+    /// @param randomGenerator the source of randomness
+    /// @return a version-7 UUID
+    /// @since 0.2.0
+    public static UUID generateV7(Instant instant, RandomGenerator randomGenerator) {
+        final int nanosPerMilli = 1_000_000;
+        final int subMilliFractionBits = 10;
+        final int randomABits = 2;
+        int nanoOfMilli = instant.getNano() % nanosPerMilli;
+        int subMillisecondFraction = (int) (((long) nanoOfMilli << subMilliFractionBits)
+                / nanosPerMilli);
+        long randomBits = randomGenerator.nextLong();
+        int randA = (subMillisecondFraction << randomABits)
+                | (int) (randomBits >>> (Long.SIZE - randomABits));
+        return v7(instant.toEpochMilli(), randA, randomBits);
+    }
+
     /// Generates a version-7 UUID from the given time source and random generator.
     ///
     /// The timestamp is obtained from `instantSource`, and the random payload
@@ -1130,18 +1205,9 @@ public final class UUIDs {
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
     /// @return a version-7 UUID
+    /// @since 0.2.0
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
-        final int nanosPerMilli = 1_000_000;
-        final int subMilliFractionBits = 10;
-        final int randomABits = 2;
-        Instant instant = instantSource.instant();
-        int nanoOfMilli = instant.getNano() % nanosPerMilli;
-        int subMillisecondFraction = (int) (((long) nanoOfMilli << subMilliFractionBits)
-                / nanosPerMilli);
-        long randomBits = randomGenerator.nextLong();
-        int randA = (subMillisecondFraction << randomABits)
-                | (int) (randomBits >>> (Long.SIZE - randomABits));
-        return v7(instant.toEpochMilli(), randA, randomBits);
+        return generateV7(instantSource.instant(), randomGenerator);
     }
 
     // ========================================================================

@@ -357,6 +357,25 @@ class UUIDsTest {
     }
 
     @Test
+    void generateV1WithInstantUsesDefaultRandomSource() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV1(instant);
+        assertEquals(1, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+    }
+
+    @Test
+    void generateV1WithInstantAndRandomGenerator() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV1(instant, new Random(0));
+        assertEquals(1, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+        assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
+    }
+
+    @Test
     void generateV1WithRandomGeneratorUsesSystemTime() {
         Random random = new Random(0);
         long before = System.currentTimeMillis();
@@ -578,6 +597,25 @@ class UUIDsTest {
     }
 
     @Test
+    void generateV6WithInstantUsesDefaultRandomSource() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV6(instant);
+        assertEquals(6, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+    }
+
+    @Test
+    void generateV6WithInstantAndRandomGenerator() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV6(instant, new Random(0));
+        assertEquals(6, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant, UUIDs.getInstant(result));
+        assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
+    }
+
+    @Test
     void generateV6WithRandomGeneratorUsesSystemTime() {
         Random random = new Random(0);
         long before = System.currentTimeMillis();
@@ -667,6 +705,15 @@ class UUIDsTest {
     }
 
     @Test
+    void generateV7WithInstantUsesDefaultRandomSource() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV7(instant);
+        assertEquals(7, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant.toEpochMilli(), UUIDs.getUnixTimestampMillis(result));
+    }
+
+    @Test
     void generateV7UsesSingleRandomLong() {
         Instant instant = Instant.ofEpochSecond(1, 123_456_700);
         long randomBits = 0xFEDC_BA98_7654_3210L;
@@ -688,6 +735,36 @@ class UUIDsTest {
         };
 
         UUID result = UUIDs.generateV7(InstantSource.fixed(instant), random);
+        int subMillisecondFraction = (int) (((long) (instant.getNano() % 1_000_000) << 10)
+                / 1_000_000);
+        int randA = (subMillisecondFraction << 2) | (int) (randomBits >>> 62);
+        assertEquals(instant.toEpochMilli(), UUIDs.getUnixTimestampMillis(result));
+        assertEquals(randA, UUIDs.getV7RandA(result));
+        assertEquals(randomBits << 2 >>> 2, UUIDs.getV7RandB(result));
+    }
+
+    @Test
+    void generateV7WithInstantAndRandomGeneratorUsesSingleRandomLong() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        long randomBits = 0xFEDC_BA98_7654_3210L;
+        Random random = new Random() {
+            private boolean used;
+
+            @Override
+            public long nextLong() {
+                assertFalse(used);
+                used = true;
+                return randomBits;
+            }
+
+            @Override
+            public int nextInt() {
+                fail("generateV7 must not call nextInt()");
+                return 0;
+            }
+        };
+
+        UUID result = UUIDs.generateV7(instant, random);
         int subMillisecondFraction = (int) (((long) (instant.getNano() % 1_000_000) << 10)
                 / 1_000_000);
         int randA = (subMillisecondFraction << 2) | (int) (randomBits >>> 62);
