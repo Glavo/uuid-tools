@@ -1249,8 +1249,9 @@ public final class UUIDs {
     ///
     /// @param key0    First SipHash key half.
     /// @param key1    Second SipHash key half.
+    /// @param xorMask Per-instance output mask applied after SipHash.
     /// @param counter Monotonic input block for SipHash.
-    private record DefaultRandomGenerator(long key0, long key1, AtomicLong counter) implements RandomGenerator {
+    private record DefaultRandomGenerator(long key0, long key1, long xorMask, AtomicLong counter) implements RandomGenerator {
         /// The default random source instance.
         static final RandomGenerator INSTANCE;
 
@@ -1259,13 +1260,14 @@ public final class UUIDs {
             INSTANCE = new DefaultRandomGenerator(
                     seedSource.nextLong(),
                     seedSource.nextLong(),
+                    seedSource.nextLong(),
                     new AtomicLong(seedSource.nextLong()));
         }
 
         /// Returns the next 64 pseudorandom bits.
         @Override
         public long nextLong() {
-            return sipHash24(key0, key1, counter.getAndIncrement());
+            return sipHash24(key0, key1, counter.getAndIncrement()) ^ xorMask;
         }
     }
 
