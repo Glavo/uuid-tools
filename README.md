@@ -1,4 +1,4 @@
-# uuid-tools
+# UUID Tools: A Lightweight, Modern Java UUID Utility Library
 
 [![Gradle Check](https://github.com/Glavo/uuid-tools/actions/workflows/check.yml/badge.svg)](https://github.com/Glavo/uuid-tools/actions/workflows/check.yml)
 [![codecov](https://codecov.io/gh/Glavo/uuid-tools/graph/badge.svg)](https://codecov.io/gh/Glavo/uuid-tools)
