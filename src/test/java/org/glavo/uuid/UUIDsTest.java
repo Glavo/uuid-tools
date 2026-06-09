@@ -705,9 +705,30 @@ class UUIDsTest {
     }
 
     @Test
+    void generateV7WithRandomGeneratorUsesSystemTime() {
+        Random random = new Random(0);
+        long before = System.currentTimeMillis();
+        UUID result = UUIDs.generateV7(random);
+        long after = System.currentTimeMillis();
+        assertEquals(7, result.version());
+        assertEquals(2, result.variant());
+        assertTrue(before <= UUIDs.getUnixTimestampMillis(result));
+        assertTrue(UUIDs.getUnixTimestampMillis(result) <= after);
+    }
+
+    @Test
     void generateV7WithInstantUsesDefaultRandomSource() {
         Instant instant = Instant.ofEpochSecond(1, 123_456_700);
         UUID result = UUIDs.generateV7(instant);
+        assertEquals(7, result.version());
+        assertEquals(2, result.variant());
+        assertEquals(instant.toEpochMilli(), UUIDs.getUnixTimestampMillis(result));
+    }
+
+    @Test
+    void generateV7WithInstantSourceUsesDefaultRandomSource() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        UUID result = UUIDs.generateV7(InstantSource.fixed(instant));
         assertEquals(7, result.version());
         assertEquals(2, result.variant());
         assertEquals(instant.toEpochMilli(), UUIDs.getUnixTimestampMillis(result));

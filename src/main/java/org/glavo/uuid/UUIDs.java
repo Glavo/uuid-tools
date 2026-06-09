@@ -1166,6 +1166,15 @@ public final class UUIDs {
         return generateV7(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
 
+    /// Generates a version-7 UUID from the system clock and the given random generator.
+    ///
+    /// @param randomGenerator the source of randomness
+    /// @return a version-7 UUID
+    /// @since 0.2.0
+    public static UUID generateV7(RandomGenerator randomGenerator) {
+        return generateV7(InstantSource.system(), randomGenerator);
+    }
+
     /// Generates a version-7 UUID from the given instant and default random source.
     ///
     /// @param instant the timestamp instant
@@ -1195,6 +1204,15 @@ public final class UUIDs {
         int randA = (subMillisecondFraction << randomABits)
                 | (int) (randomBits >>> (Long.SIZE - randomABits));
         return v7(instant.toEpochMilli(), randA, randomBits);
+    }
+
+    /// Generates a version-7 UUID from the given time source and default random source.
+    ///
+    /// @param instantSource the source of the current time
+    /// @return a version-7 UUID
+    /// @since 0.2.0
+    public static UUID generateV7(InstantSource instantSource) {
+        return generateV7(instantSource, DefaultRandomGenerator.INSTANCE);
     }
 
     /// Generates a version-7 UUID from the given time source and random generator.
