@@ -901,6 +901,14 @@ public final class UUIDs {
 
     /// Generates a version-3 UUID from a string name, encoded as UTF-8.
     ///
+    /// RFC 9562 name-based UUIDs use a namespace UUID. Passing `null` omits
+    /// the namespace bytes and is a library extension, not the standard
+    /// namespace form. Passing [#NIL] uses the nil UUID's 16 bytes as the
+    /// namespace and is therefore different from `null`.
+    ///
+    /// When `namespace` is `null`, this method is equivalent to
+    /// [UUID#nameUUIDFromBytes(byte[])] with the UTF-8 bytes of `name`.
+    ///
     /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
     /// @param name      the name
     /// @return a version-3 UUID
@@ -911,6 +919,14 @@ public final class UUIDs {
 
     /// Generates a version-3 UUID from a byte array name.
     ///
+    /// RFC 9562 name-based UUIDs use a namespace UUID. Passing `null` omits
+    /// the namespace bytes and is a library extension, not the standard
+    /// namespace form. Passing [#NIL] uses the nil UUID's 16 bytes as the
+    /// namespace and is therefore different from `null`.
+    ///
+    /// When `namespace` is `null`, this method is equivalent to
+    /// [UUID#nameUUIDFromBytes(byte[])].
+    ///
     /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
     /// @param name      the name bytes
     /// @return a version-3 UUID
@@ -920,6 +936,14 @@ public final class UUIDs {
     }
 
     /// Generates a version-3 UUID from the remaining bytes of a [ByteBuffer].
+    ///
+    /// RFC 9562 name-based UUIDs use a namespace UUID. Passing `null` omits
+    /// the namespace bytes and is a library extension, not the standard
+    /// namespace form. Passing [#NIL] uses the nil UUID's 16 bytes as the
+    /// namespace and is therefore different from `null`.
+    ///
+    /// When `namespace` is `null`, this method is equivalent to
+    /// [UUID#nameUUIDFromBytes(byte[])] applied to the consumed bytes.
     ///
     /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
     /// @param name      the buffer; its remaining bytes are consumed
@@ -982,6 +1006,11 @@ public final class UUIDs {
     ///
     /// The name is encoded as UTF-8 before hashing.
     ///
+    /// RFC 9562 name-based UUIDs use a namespace UUID. Passing `null` omits
+    /// the namespace bytes and is a library extension, not the standard
+    /// namespace form. Passing [#NIL] uses the nil UUID's 16 bytes as the
+    /// namespace and is therefore different from `null`.
+    ///
     /// @param namespace the optional namespace UUID prepended to the hash input
     /// @param name      the name to hash
     /// @return a version-5 UUID
@@ -992,6 +1021,11 @@ public final class UUIDs {
 
     /// Generates a version-5 UUID from a byte array name.
     ///
+    /// RFC 9562 name-based UUIDs use a namespace UUID. Passing `null` omits
+    /// the namespace bytes and is a library extension, not the standard
+    /// namespace form. Passing [#NIL] uses the nil UUID's 16 bytes as the
+    /// namespace and is therefore different from `null`.
+    ///
     /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
     /// @param name      the name bytes
     /// @return a version-5 UUID
@@ -1001,6 +1035,11 @@ public final class UUIDs {
     }
 
     /// Generates a version-5 UUID from the remaining bytes of a [ByteBuffer].
+    ///
+    /// RFC 9562 name-based UUIDs use a namespace UUID. Passing `null` omits
+    /// the namespace bytes and is a library extension, not the standard
+    /// namespace form. Passing [#NIL] uses the nil UUID's 16 bytes as the
+    /// namespace and is therefore different from `null`.
     ///
     /// @param namespace the namespace UUID prepended to the hash input, or `null` for no namespace
     /// @param name      the buffer; its remaining bytes are consumed
