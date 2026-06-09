@@ -1117,11 +1117,6 @@ public final class UUIDs {
 
     /// Generates a version-7 UUID from the system clock and default random source.
     ///
-    /// The 48-bit timestamp comes from the current Unix epoch millisecond. The
-    /// high 10 bits of `rand_a` are filled from the sub-millisecond fraction of
-    /// the current instant, and the remaining random payload is derived from a
-    /// single 64-bit random value.
-    ///
     /// @return a version-7 UUID
     public static UUID generateV7() {
         return generateV7(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
@@ -1129,10 +1124,8 @@ public final class UUIDs {
 
     /// Generates a version-7 UUID from the given time source and random generator.
     ///
-    /// The 48-bit timestamp comes from [Instant#toEpochMilli()]. The high
-    /// 10 bits of `rand_a` are filled from the instant's sub-millisecond
-    /// fraction, and the remaining random payload is derived from one call to
-    /// [RandomGenerator#nextLong()].
+    /// The timestamp is obtained from `instantSource`, and the random payload
+    /// is obtained from `randomGenerator`.
     ///
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
