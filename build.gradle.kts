@@ -19,7 +19,7 @@ plugins {
 }
 
 group = "org.glavo"
-version = "0.2.0" // + "-SNAPSHOT"
+version = "0.3.0" + "-SNAPSHOT"
 description = "A lightweight Java UUID utility library for generating, parsing, formatting, and comparing UUIDs."
 
 repositories {

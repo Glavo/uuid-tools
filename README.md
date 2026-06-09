@@ -9,11 +9,13 @@ comparing UUIDs.
 
 ## Add to Your Project
 
+[![Maven Central Version](https://img.shields.io/maven-central/v/org.glavo/uuid-tools?label=Maven%20Central)](https://central.sonatype.com/artifact/org.glavo/uuid-tools)
+
 Gradle:
 
 ```kotlin
 dependencies {
-    implementation("org.glavo:uuid-tools:0.1.0")
+    implementation("org.glavo:uuid-tools:0.2.0")
 }
 ```
 
@@ -24,7 +26,7 @@ Maven:
     <dependency>
         <groupId>org.glavo</groupId>
         <artifactId>uuid-tools</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
     </dependency>
 </dependencies>
 ```
