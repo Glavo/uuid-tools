@@ -885,6 +885,9 @@ public final class UUIDs {
 
     /// Creates a version-3 UUID from a 16-byte MD5 digest.
     ///
+    /// This method expects a precomputed MD5 digest, not a name. To generate
+    /// a name-based UUID from a namespace and name, use [#generateV3(UUID, byte\[\])] instead.
+    ///
     /// @param md5Digest the 16-byte MD5 digest
     /// @return a version-3 UUID
     /// @throws IllegalArgumentException if `md5Digest` is not exactly 16 bytes long
@@ -960,6 +963,9 @@ public final class UUIDs {
     // ========================================================================
 
     /// Creates a version-5 UUID from a 20-byte SHA-1 digest.
+    ///
+    /// This method expects a precomputed SHA-1 digest, not a name. To generate
+    /// a name-based UUID from a namespace and name, use [#generateV5(UUID, byte\[\])] instead.
     ///
     /// @param sha1Digest the 20-byte SHA-1 digest
     /// @return a version-5 UUID
