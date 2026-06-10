@@ -397,6 +397,10 @@ code {
   background: #fbfcfd;
 }
 
+.field-row[hidden] {
+  display: none;
+}
+
 .field-row.wide {
   grid-column: 1 / -1;
 }

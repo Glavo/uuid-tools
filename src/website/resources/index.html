@@ -134,60 +134,60 @@
         <p class="version-detail-text" id="version-detail-text"></p>
         <div class="layout-visual" aria-label="UUID field layout">
           <div class="layout-track layout-v1">
-            <span class="layout-time">time_low</span>
-            <span class="layout-time-mid">time_mid</span>
-            <span class="layout-version" title="time_hi_and_version: 12 timestamp bits plus 4 version bits">time_hi + ver</span>
-            <span class="layout-sequence">seq</span>
-            <span class="layout-node">node</span>
+            <span class="layout-time" title="Low 32 bits of the 60-bit Gregorian timestamp">time_low</span>
+            <span class="layout-time-mid" title="Middle 16 bits of the 60-bit Gregorian timestamp">time_mid</span>
+            <span class="layout-version" title="High 12 timestamp bits plus 4 UUID version bits">time_hi + ver</span>
+            <span class="layout-sequence" title="Variant bits plus the 14-bit clock sequence">seq</span>
+            <span class="layout-node" title="48-bit node identifier">node</span>
           </div>
           <div class="layout-track layout-v2">
-            <span class="layout-local">local_id</span>
-            <span class="layout-time-mid">time_mid</span>
-            <span class="layout-version" title="time_hi_and_version: 12 timestamp bits plus 4 version bits">time_hi + ver</span>
-            <span class="layout-sequence">domain</span>
-            <span class="layout-node">node</span>
+            <span class="layout-local" title="32-bit DCE local identifier">local_id</span>
+            <span class="layout-time-mid" title="Middle 16 bits of the truncated Gregorian timestamp">time_mid</span>
+            <span class="layout-version" title="High 12 timestamp bits plus 4 UUID version bits">time_hi + ver</span>
+            <span class="layout-sequence" title="Local domain with adjacent variant and clock sequence bits">domain</span>
+            <span class="layout-node" title="48-bit node identifier">node</span>
           </div>
           <div class="layout-track layout-v3">
-            <span class="layout-hash">hash</span>
-            <span class="layout-version">ver</span>
-            <span class="layout-hash">hash</span>
-            <span class="layout-variant">var</span>
-            <span class="layout-hash">hash</span>
+            <span class="layout-hash" title="MD5 hash payload bits before the version field">hash</span>
+            <span class="layout-version" title="4 UUID version bits">ver</span>
+            <span class="layout-hash" title="MD5 hash payload bits between version and variant">hash</span>
+            <span class="layout-variant" title="2 UUID variant bits">var</span>
+            <span class="layout-hash" title="MD5 hash payload bits after the variant field">hash</span>
           </div>
           <div class="layout-track layout-v4">
-            <span class="layout-random">random</span>
-            <span class="layout-version">ver</span>
-            <span class="layout-random">random</span>
-            <span class="layout-variant">var</span>
-            <span class="layout-random">random</span>
+            <span class="layout-random" title="Random payload bits before the version field">random</span>
+            <span class="layout-version" title="4 UUID version bits">ver</span>
+            <span class="layout-random" title="Random payload bits between version and variant">random</span>
+            <span class="layout-variant" title="2 UUID variant bits">var</span>
+            <span class="layout-random" title="Random payload bits after the variant field">random</span>
           </div>
           <div class="layout-track layout-v5">
-            <span class="layout-hash">hash</span>
-            <span class="layout-version">ver</span>
-            <span class="layout-hash">hash</span>
-            <span class="layout-variant">var</span>
-            <span class="layout-hash">hash</span>
+            <span class="layout-hash" title="SHA-1 hash payload bits before the version field">hash</span>
+            <span class="layout-version" title="4 UUID version bits">ver</span>
+            <span class="layout-hash" title="SHA-1 hash payload bits between version and variant">hash</span>
+            <span class="layout-variant" title="2 UUID variant bits">var</span>
+            <span class="layout-hash" title="SHA-1 hash payload bits after the variant field">hash</span>
           </div>
           <div class="layout-track layout-v6">
-            <span class="layout-time">time</span>
-            <span class="layout-version">ver</span>
-            <span class="layout-time-mid">time</span>
-            <span class="layout-sequence">seq</span>
-            <span class="layout-node">node</span>
+            <span class="layout-time" title="High Gregorian timestamp bits in sortable order">time</span>
+            <span class="layout-version" title="4 UUID version bits">ver</span>
+            <span class="layout-time-mid" title="Remaining Gregorian timestamp bits">time</span>
+            <span class="layout-sequence" title="Variant bits plus the 14-bit clock sequence">seq</span>
+            <span class="layout-node" title="48-bit node identifier">node</span>
           </div>
           <div class="layout-track layout-v7">
-            <span class="layout-time">unix_ms</span>
-            <span class="layout-version">ver</span>
-            <span class="layout-random">rand_a</span>
-            <span class="layout-variant">var</span>
-            <span class="layout-random">rand_b</span>
+            <span class="layout-time" title="48-bit Unix epoch millisecond timestamp">unix_ms</span>
+            <span class="layout-version" title="4 UUID version bits">ver</span>
+            <span class="layout-random" title="12-bit random payload field">rand_a</span>
+            <span class="layout-variant" title="2 UUID variant bits">var</span>
+            <span class="layout-random" title="62-bit random payload field">rand_b</span>
           </div>
           <div class="layout-track layout-v8">
-            <span class="layout-custom">custom</span>
-            <span class="layout-version">ver</span>
-            <span class="layout-custom">custom</span>
-            <span class="layout-variant">var</span>
-            <span class="layout-custom">custom</span>
+            <span class="layout-custom" title="Application-defined payload bits before the version field">custom</span>
+            <span class="layout-version" title="4 UUID version bits">ver</span>
+            <span class="layout-custom" title="Application-defined payload bits between version and variant">custom</span>
+            <span class="layout-variant" title="2 UUID variant bits">var</span>
+            <span class="layout-custom" title="Application-defined payload bits after the variant field">custom</span>
           </div>
         </div>
       </section>
