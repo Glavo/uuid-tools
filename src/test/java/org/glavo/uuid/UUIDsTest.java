@@ -376,6 +376,33 @@ class UUIDsTest {
     }
 
     @Test
+    void generateV1UsesSingleRandomLong() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        long randomBits = 0xFEDC_BA98_7654_3210L;
+        Random random = new Random() {
+            private boolean used;
+
+            @Override
+            public long nextLong() {
+                assertFalse(used, "generateV1 must call nextLong() once");
+                used = true;
+                return randomBits;
+            }
+
+            @Override
+            public int nextInt() {
+                fail("generateV1 must not call nextInt()");
+                return 0;
+            }
+        };
+
+        UUID result = UUIDs.generateV1(instant, random);
+
+        assertEquals((int) (randomBits >>> 50), UUIDs.getClockSequence(result));
+        assertEquals((randomBits & 0xFFFF_FFFF_FFFFL) | (1L << 40), UUIDs.getNode(result));
+    }
+
+    @Test
     void generateV1WithRandomGeneratorUsesSystemTime() {
         Random random = new Random(0);
         long before = System.currentTimeMillis();
@@ -613,6 +640,33 @@ class UUIDsTest {
         assertEquals(2, result.variant());
         assertEquals(instant, UUIDs.getInstant(result));
         assertNotEquals(0L, result.getLeastSignificantBits() & (1L << 40));
+    }
+
+    @Test
+    void generateV6UsesSingleRandomLong() {
+        Instant instant = Instant.ofEpochSecond(1, 123_456_700);
+        long randomBits = 0xFEDC_BA98_7654_3210L;
+        Random random = new Random() {
+            private boolean used;
+
+            @Override
+            public long nextLong() {
+                assertFalse(used, "generateV6 must call nextLong() once");
+                used = true;
+                return randomBits;
+            }
+
+            @Override
+            public int nextInt() {
+                fail("generateV6 must not call nextInt()");
+                return 0;
+            }
+        };
+
+        UUID result = UUIDs.generateV6(instant, random);
+
+        assertEquals((int) (randomBits >>> 50), UUIDs.getClockSequence(result));
+        assertEquals((randomBits & 0xFFFF_FFFF_FFFFL) | (1L << 40), UUIDs.getNode(result));
     }
 
     @Test

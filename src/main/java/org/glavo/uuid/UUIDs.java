@@ -763,7 +763,8 @@ public final class UUIDs {
     /// @return a version-1 UUID
     /// @since 0.2.0
     public static UUID generateV1(Instant instant, RandomGenerator randomGenerator) {
-        return v1(instant, randomClockSequence(randomGenerator), randomNode(randomGenerator));
+        long randomBits = randomGenerator.nextLong();
+        return v1(instant, randomClockSequence(randomBits), randomNode(randomBits));
     }
 
     /// Generates a version-1 UUID from the given time source and default random source.
@@ -1114,7 +1115,8 @@ public final class UUIDs {
     /// @return a version-6 UUID
     /// @since 0.2.0
     public static UUID generateV6(Instant instant, RandomGenerator randomGenerator) {
-        return v6(instant, randomClockSequence(randomGenerator), randomNode(randomGenerator));
+        long randomBits = randomGenerator.nextLong();
+        return v6(instant, randomClockSequence(randomBits), randomNode(randomBits));
     }
 
     /// Generates a version-6 UUID from the given time source and default random source.
@@ -1554,6 +1556,11 @@ public final class UUIDs {
         return randomGenerator.nextInt() & CLOCK_SEQUENCE_MASK;
     }
 
+    /// Extracts a random 14-bit clock sequence from the high bits of a random word.
+    private static int randomClockSequence(long randomBits) {
+        return (int) (randomBits >>> (Long.SIZE - 14));
+    }
+
     /// Generates a random 6-bit DCE Security clock sequence.
     private static int randomDceClockSequence(RandomGenerator randomGenerator) {
         return randomGenerator.nextInt() & DCE_CLOCK_SEQUENCE_MASK;
@@ -1562,6 +1569,11 @@ public final class UUIDs {
     /// Generates a random 48-bit node ID with the multicast bit set.
     private static long randomNode(RandomGenerator randomGenerator) {
         return (randomGenerator.nextLong() & NODE_MASK) | RANDOM_NODE_MULTICAST_MASK;
+    }
+
+    /// Extracts a random 48-bit node ID from the low bits of a random word and sets the multicast bit.
+    private static long randomNode(long randomBits) {
+        return (randomBits & NODE_MASK) | RANDOM_NODE_MULTICAST_MASK;
     }
 
     /// Computes SipHash-2-4 for a single 8-byte message block.
