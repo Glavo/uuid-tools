@@ -10,8 +10,8 @@ import java.nio.ByteBuffer;
 /// TeaVM classlib supplement for `java.security.MessageDigest`.
 ///
 /// TeaVM maps `org.teavm.classlib.java.*` classes to `java.*` classes. This
-/// implementation provides the MD5 and SHA-1 operations used by uuid-tools
-/// name-based UUID generation.
+/// implementation provides the MD5 and SHA-1 operations used by the UUID Tools
+/// demo's name-based UUID generation.
 @NotNullByDefault
 public final class TMessageDigest {
     /// Internal algorithm id for MD5.

@@ -279,6 +279,22 @@ html[data-source="parse"] #generate-button {
   min-width: 0;
 }
 
+.version-control {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.version-description {
+  min-height: 44px;
+  margin: 0;
+  border-left: 3px solid #d29026;
+  padding: 2px 0 2px 10px;
+  color: #59636f;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .control-set {
   display: none;
 }

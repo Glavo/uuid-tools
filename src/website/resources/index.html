@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>uuid-tools demo</title>
+  <title>UUID Tools Demo</title>
   <link rel="stylesheet" href="style.css">
   <script defer src="wasm-gc/uuid-tools-demo.wasm-runtime.js"></script>
   <script defer src="site.js"></script>
@@ -18,7 +18,7 @@
         <span></span>
       </div>
       <div>
-        <h1>uuid-tools</h1>
+        <h1>UUID Tools</h1>
         <p>Generate, parse, and inspect UUIDs with the Java API compiled to Wasm GC.</p>
       </div>
     </div>
@@ -49,36 +49,35 @@
 
       <div class="source-mode generate-mode">
         <div class="control-grid">
-          <label class="control">
-            <span>Version</span>
-            <select id="version-select">
-              <option value="7" selected>Version 7</option>
-              <option value="4">Version 4</option>
-              <option value="5">Version 5</option>
-              <option value="3">Version 3</option>
-              <option value="1">Version 1</option>
-              <option value="6">Version 6</option>
-              <option value="2">Version 2</option>
-              <option value="8">Version 8</option>
-            </select>
-          </label>
+          <div class="version-control">
+            <label class="control">
+              <span>Version</span>
+              <select id="version-select">
+                <option value="1">Version 1</option>
+                <option value="2">Version 2</option>
+                <option value="3">Version 3</option>
+                <option value="4">Version 4</option>
+                <option value="5">Version 5</option>
+                <option value="6">Version 6</option>
+                <option value="7" selected>Version 7</option>
+                <option value="8">Version 8</option>
+              </select>
+            </label>
+            <p class="version-description" id="version-description"></p>
+          </div>
 
           <div class="control-set name-controls">
             <label class="control">
               <span>Namespace</span>
-              <select id="namespace-select">
-                <option value="dns" selected>DNS</option>
-                <option value="url">URL</option>
-                <option value="oid">OID</option>
-                <option value="x500">X.500</option>
-                <option value="none">None</option>
-                <option value="custom">Custom</option>
-              </select>
+              <input id="namespace-input" list="namespace-options" spellcheck="false" value="DNS">
             </label>
-            <label class="control custom-namespace-control">
-              <span>Custom namespace</span>
-              <input id="namespace-input" spellcheck="false" value="6ba7b810-9dad-11d1-80b4-00c04fd430c8">
-            </label>
+            <datalist id="namespace-options">
+              <option value="DNS">6ba7b810-9dad-11d1-80b4-00c04fd430c8</option>
+              <option value="URL">6ba7b811-9dad-11d1-80b4-00c04fd430c8</option>
+              <option value="OID">6ba7b812-9dad-11d1-80b4-00c04fd430c8</option>
+              <option value="X.500">6ba7b814-9dad-11d1-80b4-00c04fd430c8</option>
+              <option value="None">No namespace bytes</option>
+            </datalist>
             <label class="control">
               <span>Name</span>
               <input id="name-input" spellcheck="false" value="example.com">

@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNullByDefault;
 /// TeaVM classlib supplement for `java.util.UUID`.
 ///
 /// TeaVM maps `org.teavm.classlib.java.*` classes to `java.*` classes. This
-/// implementation provides the UUID operations used by uuid-tools.
+/// implementation provides the UUID operations used by the UUID Tools demo.
 @NotNullByDefault
 public final class TUUID implements Comparable<TUUID> {
     /// The UUID variant mask for the RFC 4122/RFC 9562 variant.

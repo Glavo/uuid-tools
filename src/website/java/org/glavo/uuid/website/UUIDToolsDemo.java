@@ -17,7 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
-/// TeaVM entry point for the interactive uuid-tools demo website.
+/// TeaVM entry point for the interactive UUID Tools demo website.
 @NotNullByDefault
 public final class UUIDToolsDemo {
     /// The number of UUID bytes.
@@ -51,7 +51,6 @@ public final class UUIDToolsDemo {
     /// HTML ids for controls that update the generated UUID preview.
     private static final String @Unmodifiable [] GENERATOR_CONTROL_IDS = {
             "version-select",
-            "namespace-select",
             "namespace-input",
             "name-input",
             "local-domain-select",
@@ -121,6 +120,7 @@ public final class UUIDToolsDemo {
     private static void regenerate() {
         int version = parseIntValue("version-select", "version");
         setDocumentVersion(version);
+        setText("version-description", versionDescription(version));
         try {
             UUID uuid = createUUID(version);
             acceptUUID(uuid, "Generated");
@@ -151,6 +151,26 @@ public final class UUIDToolsDemo {
                     readOptionalRandA(),
                     readOptionalRandB());
             case 8 -> UUIDs.v8(randomLong(), randomLong());
+            default -> throw new IllegalArgumentException("Unsupported UUID version: " + version);
+        };
+    }
+
+    /// Returns the short description displayed for a UUID version.
+    ///
+    /// @param version the selected UUID version
+    /// @return the version description
+    private static String versionDescription(int version) {
+        return switch (version) {
+            case 1 -> "Time-based UUID with a Gregorian timestamp, clock sequence, and random multicast node. "
+                    + "Kept for legacy interoperability.";
+            case 2 -> "DCE Security UUID that embeds a local domain and identifier with a coarse timestamp.";
+            case 3 -> "Name-based UUID derived from an MD5 hash of the namespace and name.";
+            case 4 -> "Random UUID with 122 random payload bits.";
+            case 5 -> "Name-based UUID derived from a SHA-1 hash of the namespace and name.";
+            case 6 -> "Reordered version-1 layout with timestamp bits arranged for chronological sorting.";
+            case 7 -> "Time-ordered UUID with a Unix millisecond timestamp and random payload. "
+                    + "Preferred for new time-based IDs.";
+            case 8 -> "Application-defined UUID layout. This demo fills the payload with random bits.";
             default -> throw new IllegalArgumentException("Unsupported UUID version: " + version);
         };
     }
@@ -300,20 +320,27 @@ public final class UUIDToolsDemo {
         }
     }
 
-    /// Reads the selected namespace for version-3 and version-5 UUID generation.
+    /// Reads the namespace combo box value for version-3 and version-5 UUID generation.
     ///
     /// @return the namespace UUID, or `null` for no namespace
     private static @Nullable UUID readNamespace() {
-        String selected = readValue("namespace-select");
-        return switch (selected) {
-            case "none" -> null;
-            case "dns" -> UUIDs.NAMESPACE_DNS;
-            case "url" -> UUIDs.NAMESPACE_URL;
-            case "oid" -> UUIDs.NAMESPACE_OID;
-            case "x500" -> UUIDs.NAMESPACE_X500;
-            case "custom" -> UUIDs.parse(readValue("namespace-input").trim());
-            default -> throw new IllegalArgumentException("Unknown namespace: " + selected);
-        };
+        String selected = readValue("namespace-input").trim();
+        if (selected.isEmpty() || selected.equalsIgnoreCase("none")) {
+            return null;
+        }
+        if (selected.equalsIgnoreCase("dns")) {
+            return UUIDs.NAMESPACE_DNS;
+        }
+        if (selected.equalsIgnoreCase("url")) {
+            return UUIDs.NAMESPACE_URL;
+        }
+        if (selected.equalsIgnoreCase("oid")) {
+            return UUIDs.NAMESPACE_OID;
+        }
+        if (selected.equalsIgnoreCase("x.500") || selected.equalsIgnoreCase("x500")) {
+            return UUIDs.NAMESPACE_X500;
+        }
+        return UUIDs.parse(selected);
     }
 
     /// Reads the name input as UTF-8 bytes.
