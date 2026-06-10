@@ -28,98 +28,97 @@
   <main class="workspace">
     <div class="source-column">
       <section class="panel source-panel" id="source-panel" data-state="idle">
-      <div class="panel-header">
-        <div>
-          <h2>Source</h2>
-          <p id="source-status">Waiting</p>
+        <div class="panel-header">
+          <div>
+            <h2>Source</h2>
+            <p id="source-status">Waiting</p>
+          </div>
+          <button id="generate-button" type="button">Generate</button>
         </div>
-        <button id="generate-button" type="button">Generate</button>
-      </div>
 
-      <div class="source-tabs" role="tablist" aria-label="UUID source">
-        <button id="source-generate-button" class="source-tab" type="button" aria-pressed="true">Generate</button>
-        <button id="source-parse-button" class="source-tab" type="button" aria-pressed="false">Parse</button>
-      </div>
+        <div class="source-tabs" role="tablist" aria-label="UUID source">
+          <button id="source-generate-button" class="source-tab" type="button" aria-pressed="true">Generate</button>
+          <button id="source-parse-button" class="source-tab" type="button" aria-pressed="false">Parse</button>
+        </div>
 
-      <div class="source-mode generate-mode">
-        <div class="control-grid">
-          <div class="version-control">
+        <div class="source-mode generate-mode">
+          <div class="control-grid">
+            <div class="version-control">
+              <label class="control">
+                <span>Version</span>
+                <select id="version-select">
+                  <option value="1">Version 1 (time-based legacy)</option>
+                  <option value="2">Version 2 (DCE Security)</option>
+                  <option value="3">Version 3 (MD5 name-based)</option>
+                  <option value="4">Version 4 (random)</option>
+                  <option value="5">Version 5 (SHA-1 name-based)</option>
+                  <option value="6">Version 6 (sortable legacy time)</option>
+                  <option value="7" selected>Version 7 (time-ordered)</option>
+                  <option value="8">Version 8 (custom payload)</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="control-set name-controls">
+              <label class="control namespace-control">
+                <span>Namespace</span>
+                <select id="namespace-select">
+                  <option value="dns" selected>DNS (domain name)</option>
+                  <option value="url">URL</option>
+                  <option value="oid">OID</option>
+                  <option value="x500">X.500 DN</option>
+                  <option value="none">None</option>
+                  <option value="custom">Custom UUID</option>
+                </select>
+                <input id="namespace-input" spellcheck="false" value="6ba7b810-9dad-11d1-80b4-00c04fd430c8">
+              </label>
+              <label class="control">
+                <span>Name</span>
+                <input id="name-input" spellcheck="false" value="example.com">
+              </label>
+            </div>
+
+            <div class="control-set dce-controls">
+              <label class="control">
+                <span>Local domain</span>
+                <select id="local-domain-select">
+                  <option value="0" selected>Person</option>
+                  <option value="1">Group</option>
+                  <option value="2">Organization</option>
+                </select>
+              </label>
+              <label class="control">
+                <span>Local identifier</span>
+                <input id="local-id-input" inputmode="numeric" spellcheck="false" value="1000">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="source-mode parse-mode">
+          <div class="control-grid parser-grid">
+            <label class="control parser-input">
+              <span>Input</span>
+              <input id="parse-input" spellcheck="false" placeholder="550e8400-e29b-41d4-a716-446655440000">
+            </label>
             <label class="control">
-              <span>Version</span>
-              <select id="version-select">
-                <option value="1">Version 1 (time-based legacy)</option>
-                <option value="2">Version 2 (DCE Security)</option>
-                <option value="3">Version 3 (MD5 name-based)</option>
-                <option value="4">Version 4 (random)</option>
-                <option value="5">Version 5 (SHA-1 name-based)</option>
-                <option value="6">Version 6 (sortable legacy time)</option>
-                <option value="7" selected>Version 7 (time-ordered)</option>
-                <option value="8">Version 8 (custom payload)</option>
+              <span>Format</span>
+              <select id="parse-format-select">
+                <option value="text" selected>UUID text</option>
+                <option value="base62">Base62</option>
               </select>
             </label>
           </div>
+        </div>
 
-          <div class="control-set name-controls">
-            <label class="control namespace-control">
-              <span>Namespace</span>
-              <select id="namespace-select">
-                <option value="dns" selected>DNS (domain name)</option>
-                <option value="url">URL</option>
-                <option value="oid">OID</option>
-                <option value="x500">X.500 DN</option>
-                <option value="none">None</option>
-                <option value="custom">Custom UUID</option>
-              </select>
-              <input id="namespace-input" spellcheck="false" value="6ba7b810-9dad-11d1-80b4-00c04fd430c8">
-            </label>
-            <label class="control">
-              <span>Name</span>
-              <input id="name-input" spellcheck="false" value="example.com">
-            </label>
+        <p class="panel-error" id="source-error"></p>
+        <div class="output-line">
+          <div class="output-text">
+            <span>Current UUID</span>
+            <code id="active-standard"></code>
           </div>
-
-          <div class="control-set dce-controls">
-            <label class="control">
-              <span>Local domain</span>
-              <select id="local-domain-select">
-                <option value="0" selected>Person</option>
-                <option value="1">Group</option>
-                <option value="2">Organization</option>
-              </select>
-            </label>
-            <label class="control">
-              <span>Local identifier</span>
-              <input id="local-id-input" inputmode="numeric" spellcheck="false" value="1000">
-            </label>
-          </div>
+          <button id="copy-active-button" type="button">Copy</button>
         </div>
-      </div>
-
-      <div class="source-mode parse-mode">
-        <div class="control-grid parser-grid">
-          <label class="control parser-input">
-            <span>Input</span>
-            <input id="parse-input" spellcheck="false" placeholder="550e8400-e29b-41d4-a716-446655440000">
-          </label>
-          <label class="control">
-            <span>Format</span>
-            <select id="parse-format-select">
-              <option value="text" selected>UUID text</option>
-              <option value="base62">Base62</option>
-            </select>
-          </label>
-        </div>
-      </div>
-
-      <p class="panel-error" id="source-error"></p>
-      <div class="output-line">
-        <div class="output-text">
-          <span>Current UUID</span>
-          <code id="active-standard"></code>
-        </div>
-        <button id="copy-active-button" type="button">Copy</button>
-      </div>
-
       </section>
 
       <section class="panel version-panel" id="version-panel">
@@ -129,17 +128,65 @@
             <p id="version-detail-kind">Time-ordered UUID</p>
           </div>
         </div>
-        <p class="version-detail-summary" id="version-detail-summary"></p>
-        <dl class="version-detail-list">
-          <div>
-            <dt>Layout</dt>
-            <dd id="version-detail-layout"></dd>
+        <p class="version-detail-text" id="version-detail-text"></p>
+        <div class="layout-visual" aria-label="UUID field layout">
+          <div class="layout-track layout-v1">
+            <span class="layout-time">time_low</span>
+            <span class="layout-time-mid">time_mid</span>
+            <span class="layout-version">ver/time_hi</span>
+            <span class="layout-sequence">seq</span>
+            <span class="layout-node">node</span>
           </div>
-          <div>
-            <dt>Use</dt>
-            <dd id="version-detail-use"></dd>
+          <div class="layout-track layout-v2">
+            <span class="layout-local">local_id</span>
+            <span class="layout-time-mid">time_mid</span>
+            <span class="layout-version">ver/time_hi</span>
+            <span class="layout-sequence">domain</span>
+            <span class="layout-node">node</span>
           </div>
-        </dl>
+          <div class="layout-track layout-v3">
+            <span class="layout-hash">hash</span>
+            <span class="layout-version">ver</span>
+            <span class="layout-hash">hash</span>
+            <span class="layout-variant">var</span>
+            <span class="layout-hash">hash</span>
+          </div>
+          <div class="layout-track layout-v4">
+            <span class="layout-random">random</span>
+            <span class="layout-version">ver</span>
+            <span class="layout-random">random</span>
+            <span class="layout-variant">var</span>
+            <span class="layout-random">random</span>
+          </div>
+          <div class="layout-track layout-v5">
+            <span class="layout-hash">hash</span>
+            <span class="layout-version">ver</span>
+            <span class="layout-hash">hash</span>
+            <span class="layout-variant">var</span>
+            <span class="layout-hash">hash</span>
+          </div>
+          <div class="layout-track layout-v6">
+            <span class="layout-time">time</span>
+            <span class="layout-version">ver</span>
+            <span class="layout-time-mid">time</span>
+            <span class="layout-sequence">seq</span>
+            <span class="layout-node">node</span>
+          </div>
+          <div class="layout-track layout-v7">
+            <span class="layout-time">unix_ms</span>
+            <span class="layout-version">ver</span>
+            <span class="layout-random">rand_a</span>
+            <span class="layout-variant">var</span>
+            <span class="layout-random">rand_b</span>
+          </div>
+          <div class="layout-track layout-v8">
+            <span class="layout-custom">custom</span>
+            <span class="layout-version">ver</span>
+            <span class="layout-custom">custom</span>
+            <span class="layout-variant">var</span>
+            <span class="layout-custom">custom</span>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -152,16 +199,15 @@
       </div>
 
       <div class="field-grid">
-        <div class="field-row"><span>Standard</span><code id="field-standard"></code></div>
-        <div class="field-row"><span>Compact</span><code id="field-compact"></code></div>
-        <div class="field-row"><span>URN</span><code id="field-urn"></code></div>
-        <div class="field-row"><span>Base62</span><code id="field-base62"></code></div>
-        <div class="field-row"><span>OID</span><code id="field-oid"></code></div>
+        <div class="field-row wide"><span>Standard</span><code id="field-standard"></code></div>
+        <div class="field-row wide"><span>Base64</span><code id="field-base64"></code></div>
+        <div class="field-row wide"><span>OID</span><code id="field-oid"></code></div>
         <div class="field-row wide"><span>Bytes</span><code id="field-bytes"></code></div>
         <div class="field-row"><span>Most bits</span><code id="field-msb"></code></div>
         <div class="field-row"><span>Least bits</span><code id="field-lsb"></code></div>
         <div class="field-row"><span>Version</span><code id="field-version"></code></div>
         <div class="field-row"><span>Variant</span><code id="field-variant"></code></div>
+        <div class="field-row wide"><span>Instant</span><code id="field-instant"></code></div>
         <div class="field-row"><span>Unix ms</span><code id="field-time-unix"></code></div>
         <div class="field-row"><span>Gregorian ticks</span><code id="field-time-gregorian"></code></div>
         <div class="field-row"><span>Clock sequence</span><code id="field-clock-sequence"></code></div>

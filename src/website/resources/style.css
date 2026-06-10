@@ -222,6 +222,10 @@ html[data-source="parse"] #generate-button {
   display: none;
 }
 
+html[data-source="parse"] .version-panel {
+  display: none;
+}
+
 .control-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -384,37 +388,104 @@ code {
   margin-bottom: 10px;
 }
 
-.version-detail-summary {
+.version-detail-text {
   margin: 0;
   color: #20252b;
   line-height: 1.5;
 }
 
-.version-detail-list {
-  display: grid;
-  gap: 10px;
-  margin: 14px 0 0;
+.layout-visual {
+  margin-top: 16px;
 }
 
-.version-detail-list div {
-  display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
-  gap: 10px;
-  border-top: 1px solid #e5e9ef;
-  padding-top: 10px;
+.layout-track {
+  display: none;
+  min-height: 38px;
+  overflow: hidden;
+  border: 1px solid #ccd4de;
+  border-radius: 6px;
+  background: #ffffff;
 }
 
-.version-detail-list dt {
-  color: #59636f;
-  font-size: 13px;
+html[data-version="1"] .layout-v1,
+html[data-version="2"] .layout-v2,
+html[data-version="3"] .layout-v3,
+html[data-version="4"] .layout-v4,
+html[data-version="5"] .layout-v5,
+html[data-version="6"] .layout-v6,
+html[data-version="7"] .layout-v7,
+html[data-version="8"] .layout-v8 {
+  display: grid;
+}
+
+.layout-v1,
+.layout-v2 {
+  grid-template-columns: 32fr 16fr 16fr 16fr 48fr;
+}
+
+.layout-v3,
+.layout-v4,
+.layout-v5,
+.layout-v6,
+.layout-v7,
+.layout-v8 {
+  grid-template-columns: 48fr 4fr 12fr 2fr 62fr;
+}
+
+.layout-track span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  padding: 0 6px;
+  color: #ffffff;
+  font-size: 12px;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.version-detail-list dd {
-  margin: 0;
-  color: #20252b;
-  font-size: 14px;
-  line-height: 1.45;
+.layout-track span:first-child {
+  border-left: 0;
+}
+
+.layout-time,
+.layout-time-mid {
+  background: #14736d;
+}
+
+.layout-version {
+  background: #536878;
+}
+
+.layout-variant {
+  background: #7f4f24;
+}
+
+.layout-random {
+  background: #d29026;
+}
+
+.layout-node {
+  background: #47637c;
+}
+
+.layout-sequence {
+  background: #7b5aa6;
+}
+
+.layout-local {
+  background: #a4515f;
+}
+
+.layout-hash {
+  background: #4b6f44;
+}
+
+.layout-custom {
+  background: #6e6259;
 }
 
 .panel[data-state="ok"] .panel-header p {
@@ -495,8 +566,8 @@ code {
     gap: 4px;
   }
 
-  .version-detail-list div {
-    grid-template-columns: 1fr;
-    gap: 4px;
+  .layout-track span {
+    padding: 0 3px;
+    font-size: 10px;
   }
 }

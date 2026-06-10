@@ -13,6 +13,10 @@
   function setField(id, value, state) {
     const element = byId(id);
     if (element) {
+      const row = element.closest(".field-row");
+      if (row) {
+        row.hidden = state === "hidden";
+      }
       element.textContent = value == null ? "" : String(value);
       if (state) {
         element.dataset.fieldState = state;
@@ -25,6 +29,10 @@
   function clearField(id) {
     const element = byId(id);
     if (element) {
+      const row = element.closest(".field-row");
+      if (row) {
+        row.hidden = false;
+      }
       element.textContent = "";
       delete element.dataset.fieldState;
     }

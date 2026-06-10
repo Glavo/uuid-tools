@@ -45,6 +45,9 @@ public final class UUIDToolsDemo {
     /// A mask for the 62-bit UUID version-7 `rand_b` field.
     private static final long RAND_B_MASK = 0x3FFF_FFFF_FFFF_FFFFL;
 
+    /// Characters used by the standard Base64 alphabet.
+    private static final String BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
     /// The multicast bit used for random UUID node identifiers.
     private static final long RANDOM_NODE_MULTICAST_MASK = 1L << 40;
 
@@ -61,15 +64,14 @@ public final class UUIDToolsDemo {
     /// HTML ids for fields that show values derived from the active UUID.
     private static final String @Unmodifiable [] INSPECTOR_FIELD_IDS = {
             "field-standard",
-            "field-compact",
-            "field-urn",
-            "field-base62",
+            "field-base64",
             "field-oid",
             "field-bytes",
             "field-msb",
             "field-lsb",
             "field-version",
             "field-variant",
+            "field-instant",
             "field-time-unix",
             "field-time-gregorian",
             "field-clock-sequence",
@@ -84,10 +86,8 @@ public final class UUIDToolsDemo {
     ///
     /// @param title the panel title
     /// @param kind the compact version category
-    /// @param summary the high-level behavior description
-    /// @param layout the field layout description
-    /// @param use the recommended usage description
-    private record VersionDetails(String title, String kind, String summary, String layout, String use) {
+    /// @param text the combined behavior and usage description
+    private record VersionDetails(String title, String kind, String text) {
     }
 
     /// The UUID currently displayed as the active source value.
@@ -172,9 +172,7 @@ public final class UUIDToolsDemo {
         VersionDetails details = versionDetails(version);
         setText("version-detail-title", details.title());
         setText("version-detail-kind", details.kind());
-        setText("version-detail-summary", details.summary());
-        setText("version-detail-layout", details.layout());
-        setText("version-detail-use", details.use());
+        setText("version-detail-text", details.text());
     }
 
     /// Returns the detailed description for a UUID version.
@@ -186,51 +184,50 @@ public final class UUIDToolsDemo {
             case 1 -> new VersionDetails(
                     "Version 1",
                     "Time-based legacy UUID",
-                    "Version 1 combines the current Gregorian timestamp with a clock sequence and a node identifier.",
-                    "60-bit timestamp, 14-bit clock sequence, and 48-bit node. This demo uses a random multicast node.",
-                    "Use when a legacy protocol expects version-1 UUIDs. Prefer version 7 for new time-ordered IDs.");
+                    "Version 1 combines the current Gregorian timestamp with a clock sequence and a random multicast "
+                            + "node identifier. "
+                            + "Use when a legacy protocol expects version-1 UUIDs. Prefer version 7 for new "
+                            + "time-ordered IDs.");
             case 2 -> new VersionDetails(
                     "Version 2",
                     "DCE Security UUID",
-                    "Version 2 is a legacy DCE Security layout that embeds a local domain and local identifier.",
-                    "Version-1 style timestamp fields with the low timestamp bits replaced by the local identifier.",
-                    "Use only for systems that explicitly require DCE person, group, or organization identifiers.");
+                    "Version 2 is a legacy DCE Security layout that embeds a local domain and local identifier. "
+                            + "Use only for systems that explicitly require DCE person, group, or organization "
+                            + "identifiers.");
             case 3 -> new VersionDetails(
                     "Version 3",
                     "MD5 name-based UUID",
-                    "Version 3 hashes a namespace UUID and name with MD5 to produce a deterministic UUID.",
-                    "The namespace bytes and UTF-8 name bytes are hashed, then version and variant bits are set.",
-                    "Use for compatibility with existing version-3 data. Prefer version 5 for new name-based IDs.");
+                    "Version 3 hashes a namespace UUID and UTF-8 name with MD5 to produce a deterministic UUID. "
+                            + "Use for compatibility with existing version-3 data. Prefer version 5 for new "
+                            + "name-based IDs.");
             case 4 -> new VersionDetails(
                     "Version 4",
                     "Random UUID",
-                    "Version 4 uses random payload bits and does not encode time, names, or application fields.",
-                    "122 random payload bits plus the standard version and variant bits.",
-                    "Use for opaque identifiers when chronological ordering is not needed.");
+                    "Version 4 uses 122 random payload bits and does not encode time, names, or application fields. "
+                            + "Use for opaque identifiers when chronological ordering is not needed.");
             case 5 -> new VersionDetails(
                     "Version 5",
                     "SHA-1 name-based UUID",
-                    "Version 5 hashes a namespace UUID and name with SHA-1 to produce a deterministic UUID.",
-                    "The namespace bytes and UTF-8 name bytes are hashed, then version and variant bits are set.",
-                    "Use when the same namespace and name must always produce the same UUID.");
+                    "Version 5 hashes a namespace UUID and UTF-8 name with SHA-1 to produce a deterministic UUID. "
+                            + "Use when the same namespace and name must always produce the same UUID.");
             case 6 -> new VersionDetails(
                     "Version 6",
                     "Sortable legacy time UUID",
-                    "Version 6 stores the same timestamp, clock sequence, and node data as version 1 in sortable order.",
-                    "60-bit Gregorian timestamp reordered ahead of the clock sequence and node fields.",
-                    "Use for interoperability with version-6 systems. Prefer version 7 for new sortable IDs.");
+                    "Version 6 stores the same timestamp, clock sequence, and node data as version 1 in sortable "
+                            + "order. Use for interoperability with version-6 systems. Prefer version 7 for new "
+                            + "sortable IDs.");
             case 7 -> new VersionDetails(
                     "Version 7",
                     "Time-ordered UUID",
-                    "Version 7 combines a Unix millisecond timestamp with random payload bits.",
-                    "48-bit Unix millisecond timestamp, 12-bit rand_a field, and 62-bit rand_b field.",
-                    "Use for new database keys, event IDs, and other identifiers that benefit from chronological sorting.");
+                    "Version 7 combines a Unix millisecond timestamp with random payload bits. "
+                            + "Use for new database keys, event IDs, and other identifiers that benefit from "
+                            + "chronological sorting.");
             case 8 -> new VersionDetails(
                     "Version 8",
                     "Custom payload UUID",
-                    "Version 8 reserves the version and variant bits while leaving the remaining payload to the application.",
-                    "Application-defined payload bits with version and variant bits applied by the UUID layout.",
-                    "Use when an application has a documented custom UUID layout. This demo fills the payload randomly.");
+                    "Version 8 reserves the version and variant bits while leaving the remaining payload to the "
+                            + "application. Use when an application has a documented custom UUID layout. This demo "
+                            + "fills the payload randomly.");
             default -> throw new IllegalArgumentException("Unsupported UUID version: " + version);
         };
     }
@@ -311,9 +308,7 @@ public final class UUIDToolsDemo {
         setState("inspector-panel", "ok");
         setText("inspect-status", "Ready");
         setField("field-standard", uuid.toString(), "value");
-        setField("field-compact", UUIDs.toCompactString(uuid), "value");
-        setField("field-urn", UUIDs.toURNString(uuid), "value");
-        setField("field-base62", UUIDs.toBase62String(uuid), "value");
+        setField("field-base64", toBase64String(uuid), "value");
         setField("field-oid", toOIDString(uuid), "value");
         setField("field-bytes", bytesToHex(uuid), "value");
         setField("field-msb", "0x" + lowerHex(uuid.getMostSignificantBits(), 16), "value");
@@ -332,9 +327,11 @@ public final class UUIDToolsDemo {
     private static void renderTimeFields(UUID uuid) {
         int version = uuid.version();
         if (version == 1 || version == 2 || version == 6 || version == 7) {
+            setField("field-instant", UUIDs.getInstant(uuid).toString(), "value");
             setField("field-time-unix", Long.toString(UUIDs.getUnixTimestampMillis(uuid)), "value");
             setField("field-time-gregorian", Long.toString(UUIDs.getGregorianTimestamp(uuid)), "value");
         } else {
+            setUnavailableField("field-instant");
             setUnavailableField("field-time-unix");
             setUnavailableField("field-time-gregorian");
         }
@@ -572,6 +569,40 @@ public final class UUIDToolsDemo {
         return "2.25." + new BigInteger(bytes);
     }
 
+    /// Formats a UUID as standard Base64 over the sixteen UUID bytes.
+    ///
+    /// @param uuid the UUID to format
+    /// @return the Base64 string
+    private static String toBase64String(UUID uuid) {
+        byte[] bytes = new byte[UUID_BYTE_LENGTH];
+        writeLongBigEndian(bytes, 0, uuid.getMostSignificantBits());
+        writeLongBigEndian(bytes, 8, uuid.getLeastSignificantBits());
+
+        StringBuilder out = new StringBuilder(24);
+        for (int offset = 0; offset < UUID_BYTE_LENGTH - 1; offset += 3) {
+            appendBase64Triple(out, bytes[offset] & 0xFF, bytes[offset + 1] & 0xFF, bytes[offset + 2] & 0xFF);
+        }
+
+        int last = bytes[UUID_BYTE_LENGTH - 1] & 0xFF;
+        out.append(BASE64_CHARS.charAt(last >>> 2));
+        out.append(BASE64_CHARS.charAt((last & 0x03) << 4));
+        out.append("==");
+        return out.toString();
+    }
+
+    /// Appends a three-byte Base64 group.
+    ///
+    /// @param out the output builder
+    /// @param first the first unsigned byte
+    /// @param second the second unsigned byte
+    /// @param third the third unsigned byte
+    private static void appendBase64Triple(StringBuilder out, int first, int second, int third) {
+        out.append(BASE64_CHARS.charAt(first >>> 2));
+        out.append(BASE64_CHARS.charAt(((first & 0x03) << 4) | (second >>> 4)));
+        out.append(BASE64_CHARS.charAt(((second & 0x0F) << 2) | (third >>> 6)));
+        out.append(BASE64_CHARS.charAt(third & 0x3F));
+    }
+
     /// Writes a long value as eight big-endian bytes.
     ///
     /// @param bytes the destination bytes
@@ -625,11 +656,11 @@ public final class UUIDToolsDemo {
         return out.toString();
     }
 
-    /// Marks a field as unavailable for the active UUID version.
+    /// Hides a field that is unavailable for the active UUID version.
     ///
     /// @param id the field element id
     private static void setUnavailableField(String id) {
-        setField(id, "n/a", "empty");
+        setField(id, "", "hidden");
     }
 
     /// Clears a list of result fields.
