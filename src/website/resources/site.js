@@ -49,6 +49,7 @@
     const element = byId("runtime-status");
     if (element) {
       element.dataset.state = state;
+      element.hidden = !text;
       element.textContent = text;
     }
   }
@@ -94,7 +95,7 @@
         }
       });
       teavm.exports.main([]);
-      setRuntimeStatus("ready", "Wasm GC ready");
+      setRuntimeStatus("ready", "");
     } catch (error) {
       setRuntimeStatus("error", "Runtime failed");
       setText("source-error", error && error.stack ? error.stack : String(error));
