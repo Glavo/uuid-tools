@@ -104,6 +104,23 @@ button:hover {
   line-height: 1.45;
 }
 
+.brand p a {
+  color: inherit;
+  text-decoration-color: #aeb8c2;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.brand p a:hover {
+  color: #3f4b57;
+  text-decoration-color: #7f8b96;
+}
+
+.brand p a:focus-visible {
+  outline: 2px solid #93b8b2;
+  outline-offset: 2px;
+}
+
 .brand-mark {
   display: grid;
   grid-template-columns: repeat(2, 18px);
