@@ -65,6 +65,7 @@ public final class UUIDToolsDemo {
     private static final String @Unmodifiable [] INSPECTOR_FIELD_IDS = {
             "field-standard",
             "field-base64",
+            "field-base62",
             "field-oid",
             "field-bytes",
             "field-msb",
@@ -309,6 +310,7 @@ public final class UUIDToolsDemo {
         setText("inspect-status", "Ready");
         setField("field-standard", uuid.toString(), "value");
         setField("field-base64", toBase64String(uuid), "value");
+        setField("field-base62", UUIDs.toBase62String(uuid), "value");
         setField("field-oid", toOIDString(uuid), "value");
         setField("field-bytes", bytesToHex(uuid), "value");
         setField("field-msb", "0x" + lowerHex(uuid.getMostSignificantBits(), 16), "value");
