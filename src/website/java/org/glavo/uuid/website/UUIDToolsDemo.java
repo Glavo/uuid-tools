@@ -51,12 +51,11 @@ public final class UUIDToolsDemo {
     /// HTML ids for controls that update the generated UUID preview.
     private static final String @Unmodifiable [] GENERATOR_CONTROL_IDS = {
             "version-select",
+            "namespace-select",
             "namespace-input",
             "name-input",
             "local-domain-select",
             "local-id-input",
-            "rand-a-input",
-            "rand-b-input",
     };
 
     /// HTML ids for fields that show values derived from the active UUID.
@@ -80,6 +79,16 @@ public final class UUIDToolsDemo {
             "field-rand-a",
             "field-rand-b",
     };
+
+    /// Display content for the selected UUID version.
+    ///
+    /// @param title the panel title
+    /// @param kind the compact version category
+    /// @param summary the high-level behavior description
+    /// @param layout the field layout description
+    /// @param use the recommended usage description
+    private record VersionDetails(String title, String kind, String summary, String layout, String use) {
+    }
 
     /// The UUID currently displayed as the active source value.
     private static @Nullable UUID currentUUID;
@@ -120,7 +129,8 @@ public final class UUIDToolsDemo {
     private static void regenerate() {
         int version = parseIntValue("version-select", "version");
         setDocumentVersion(version);
-        setText("version-description", versionDescription(version));
+        setDocumentNamespace(readValue("namespace-select"));
+        renderVersionDetails(version);
         try {
             UUID uuid = createUUID(version);
             acceptUUID(uuid, "Generated");
@@ -148,29 +158,79 @@ public final class UUIDToolsDemo {
             case 6 -> UUIDs.v6(currentGregorianTimestamp(), randomClockSequence(), randomNode());
             case 7 -> UUIDs.v7(
                     currentEpochMillis(),
-                    readOptionalRandA(),
-                    readOptionalRandB());
+                    randomInt() & RAND_A_MASK,
+                    randomLong() & RAND_B_MASK);
             case 8 -> UUIDs.v8(randomLong(), randomLong());
             default -> throw new IllegalArgumentException("Unsupported UUID version: " + version);
         };
     }
 
-    /// Returns the short description displayed for a UUID version.
+    /// Renders the detailed description for the selected UUID version.
     ///
     /// @param version the selected UUID version
-    /// @return the version description
-    private static String versionDescription(int version) {
+    private static void renderVersionDetails(int version) {
+        VersionDetails details = versionDetails(version);
+        setText("version-detail-title", details.title());
+        setText("version-detail-kind", details.kind());
+        setText("version-detail-summary", details.summary());
+        setText("version-detail-layout", details.layout());
+        setText("version-detail-use", details.use());
+    }
+
+    /// Returns the detailed description for a UUID version.
+    ///
+    /// @param version the selected UUID version
+    /// @return the version details
+    private static VersionDetails versionDetails(int version) {
         return switch (version) {
-            case 1 -> "Time-based UUID with a Gregorian timestamp, clock sequence, and random multicast node. "
-                    + "Kept for legacy interoperability.";
-            case 2 -> "DCE Security UUID that embeds a local domain and identifier with a coarse timestamp.";
-            case 3 -> "Name-based UUID derived from an MD5 hash of the namespace and name.";
-            case 4 -> "Random UUID with 122 random payload bits.";
-            case 5 -> "Name-based UUID derived from a SHA-1 hash of the namespace and name.";
-            case 6 -> "Reordered version-1 layout with timestamp bits arranged for chronological sorting.";
-            case 7 -> "Time-ordered UUID with a Unix millisecond timestamp and random payload. "
-                    + "Preferred for new time-based IDs.";
-            case 8 -> "Application-defined UUID layout. This demo fills the payload with random bits.";
+            case 1 -> new VersionDetails(
+                    "Version 1",
+                    "Time-based legacy UUID",
+                    "Version 1 combines the current Gregorian timestamp with a clock sequence and a node identifier.",
+                    "60-bit timestamp, 14-bit clock sequence, and 48-bit node. This demo uses a random multicast node.",
+                    "Use when a legacy protocol expects version-1 UUIDs. Prefer version 7 for new time-ordered IDs.");
+            case 2 -> new VersionDetails(
+                    "Version 2",
+                    "DCE Security UUID",
+                    "Version 2 is a legacy DCE Security layout that embeds a local domain and local identifier.",
+                    "Version-1 style timestamp fields with the low timestamp bits replaced by the local identifier.",
+                    "Use only for systems that explicitly require DCE person, group, or organization identifiers.");
+            case 3 -> new VersionDetails(
+                    "Version 3",
+                    "MD5 name-based UUID",
+                    "Version 3 hashes a namespace UUID and name with MD5 to produce a deterministic UUID.",
+                    "The namespace bytes and UTF-8 name bytes are hashed, then version and variant bits are set.",
+                    "Use for compatibility with existing version-3 data. Prefer version 5 for new name-based IDs.");
+            case 4 -> new VersionDetails(
+                    "Version 4",
+                    "Random UUID",
+                    "Version 4 uses random payload bits and does not encode time, names, or application fields.",
+                    "122 random payload bits plus the standard version and variant bits.",
+                    "Use for opaque identifiers when chronological ordering is not needed.");
+            case 5 -> new VersionDetails(
+                    "Version 5",
+                    "SHA-1 name-based UUID",
+                    "Version 5 hashes a namespace UUID and name with SHA-1 to produce a deterministic UUID.",
+                    "The namespace bytes and UTF-8 name bytes are hashed, then version and variant bits are set.",
+                    "Use when the same namespace and name must always produce the same UUID.");
+            case 6 -> new VersionDetails(
+                    "Version 6",
+                    "Sortable legacy time UUID",
+                    "Version 6 stores the same timestamp, clock sequence, and node data as version 1 in sortable order.",
+                    "60-bit Gregorian timestamp reordered ahead of the clock sequence and node fields.",
+                    "Use for interoperability with version-6 systems. Prefer version 7 for new sortable IDs.");
+            case 7 -> new VersionDetails(
+                    "Version 7",
+                    "Time-ordered UUID",
+                    "Version 7 combines a Unix millisecond timestamp with random payload bits.",
+                    "48-bit Unix millisecond timestamp, 12-bit rand_a field, and 62-bit rand_b field.",
+                    "Use for new database keys, event IDs, and other identifiers that benefit from chronological sorting.");
+            case 8 -> new VersionDetails(
+                    "Version 8",
+                    "Custom payload UUID",
+                    "Version 8 reserves the version and variant bits while leaving the remaining payload to the application.",
+                    "Application-defined payload bits with version and variant bits applied by the UUID layout.",
+                    "Use when an application has a documented custom UUID layout. This demo fills the payload randomly.");
             default -> throw new IllegalArgumentException("Unsupported UUID version: " + version);
         };
     }
@@ -324,23 +384,16 @@ public final class UUIDToolsDemo {
     ///
     /// @return the namespace UUID, or `null` for no namespace
     private static @Nullable UUID readNamespace() {
-        String selected = readValue("namespace-input").trim();
-        if (selected.isEmpty() || selected.equalsIgnoreCase("none")) {
-            return null;
-        }
-        if (selected.equalsIgnoreCase("dns")) {
-            return UUIDs.NAMESPACE_DNS;
-        }
-        if (selected.equalsIgnoreCase("url")) {
-            return UUIDs.NAMESPACE_URL;
-        }
-        if (selected.equalsIgnoreCase("oid")) {
-            return UUIDs.NAMESPACE_OID;
-        }
-        if (selected.equalsIgnoreCase("x.500") || selected.equalsIgnoreCase("x500")) {
-            return UUIDs.NAMESPACE_X500;
-        }
-        return UUIDs.parse(selected);
+        String selected = readValue("namespace-select");
+        return switch (selected) {
+            case "none" -> null;
+            case "dns" -> UUIDs.NAMESPACE_DNS;
+            case "url" -> UUIDs.NAMESPACE_URL;
+            case "oid" -> UUIDs.NAMESPACE_OID;
+            case "x500" -> UUIDs.NAMESPACE_X500;
+            case "custom" -> UUIDs.parse(readValue("namespace-input").trim());
+            default -> throw new IllegalArgumentException("Unknown namespace: " + selected);
+        };
     }
 
     /// Reads the name input as UTF-8 bytes.
@@ -397,28 +450,6 @@ public final class UUIDToolsDemo {
         } catch (NoSuchAlgorithmException e) {
             throw new InternalError("Missing algorithm: " + algorithm, e);
         }
-    }
-
-    /// Reads an optional version-7 `rand_a` value.
-    ///
-    /// @return the selected or generated `rand_a` value
-    private static int readOptionalRandA() {
-        String text = readValue("rand-a-input").trim();
-        if (text.isEmpty()) {
-            return randomInt() & RAND_A_MASK;
-        }
-        return (int) parseUnsignedText(text, RAND_A_MASK, "rand_a");
-    }
-
-    /// Reads an optional version-7 `rand_b` value.
-    ///
-    /// @return the selected or generated `rand_b` value
-    private static long readOptionalRandB() {
-        String text = readValue("rand-b-input").trim();
-        if (text.isEmpty()) {
-            return randomLong() & RAND_B_MASK;
-        }
-        return parseUnsignedText(text, RAND_B_MASK, "rand_b");
     }
 
     /// Reads a required integer form value.
@@ -650,6 +681,12 @@ public final class UUIDToolsDemo {
     /// @param version the selected UUID version
     @JSBody(params = {"version"}, script = "document.documentElement.dataset.version = String(version);")
     private static native void setDocumentVersion(int version);
+
+    /// Sets the selected namespace mode on the document root.
+    ///
+    /// @param namespace the selected namespace mode
+    @JSBody(params = {"namespace"}, script = "document.documentElement.dataset.namespace = String(namespace);")
+    private static native void setDocumentNamespace(String namespace);
 
     /// Sets the active source mode on the document root.
     ///

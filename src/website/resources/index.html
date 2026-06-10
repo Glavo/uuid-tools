@@ -23,17 +23,11 @@
       </div>
     </div>
     <div class="runtime-status" id="runtime-status" data-state="loading">Loading runtime</div>
-    <div class="bit-layout" aria-hidden="true">
-      <span class="field-time">time</span>
-      <span class="field-version">ver</span>
-      <span class="field-random-a">rand_a</span>
-      <span class="field-variant">var</span>
-      <span class="field-random-b">rand_b</span>
-    </div>
   </header>
 
   <main class="workspace">
-    <section class="panel source-panel" id="source-panel" data-state="idle">
+    <div class="source-column">
+      <section class="panel source-panel" id="source-panel" data-state="idle">
       <div class="panel-header">
         <div>
           <h2>Source</h2>
@@ -53,31 +47,31 @@
             <label class="control">
               <span>Version</span>
               <select id="version-select">
-                <option value="1">Version 1</option>
-                <option value="2">Version 2</option>
-                <option value="3">Version 3</option>
-                <option value="4">Version 4</option>
-                <option value="5">Version 5</option>
-                <option value="6">Version 6</option>
-                <option value="7" selected>Version 7</option>
-                <option value="8">Version 8</option>
+                <option value="1">Version 1 (time-based legacy)</option>
+                <option value="2">Version 2 (DCE Security)</option>
+                <option value="3">Version 3 (MD5 name-based)</option>
+                <option value="4">Version 4 (random)</option>
+                <option value="5">Version 5 (SHA-1 name-based)</option>
+                <option value="6">Version 6 (sortable legacy time)</option>
+                <option value="7" selected>Version 7 (time-ordered)</option>
+                <option value="8">Version 8 (custom payload)</option>
               </select>
             </label>
-            <p class="version-description" id="version-description"></p>
           </div>
 
           <div class="control-set name-controls">
-            <label class="control">
+            <label class="control namespace-control">
               <span>Namespace</span>
-              <input id="namespace-input" list="namespace-options" spellcheck="false" value="DNS">
+              <select id="namespace-select">
+                <option value="dns" selected>DNS (domain name)</option>
+                <option value="url">URL</option>
+                <option value="oid">OID</option>
+                <option value="x500">X.500 DN</option>
+                <option value="none">None</option>
+                <option value="custom">Custom UUID</option>
+              </select>
+              <input id="namespace-input" spellcheck="false" value="6ba7b810-9dad-11d1-80b4-00c04fd430c8">
             </label>
-            <datalist id="namespace-options">
-              <option value="DNS">6ba7b810-9dad-11d1-80b4-00c04fd430c8</option>
-              <option value="URL">6ba7b811-9dad-11d1-80b4-00c04fd430c8</option>
-              <option value="OID">6ba7b812-9dad-11d1-80b4-00c04fd430c8</option>
-              <option value="X.500">6ba7b814-9dad-11d1-80b4-00c04fd430c8</option>
-              <option value="None">No namespace bytes</option>
-            </datalist>
             <label class="control">
               <span>Name</span>
               <input id="name-input" spellcheck="false" value="example.com">
@@ -96,17 +90,6 @@
             <label class="control">
               <span>Local identifier</span>
               <input id="local-id-input" inputmode="numeric" spellcheck="false" value="1000">
-            </label>
-          </div>
-
-          <div class="control-set v7-controls">
-            <label class="control">
-              <span>rand_a</span>
-              <input id="rand-a-input" inputmode="numeric" spellcheck="false" placeholder="Random">
-            </label>
-            <label class="control">
-              <span>rand_b</span>
-              <input id="rand-b-input" inputmode="numeric" spellcheck="false" placeholder="Random">
             </label>
           </div>
         </div>
@@ -137,7 +120,28 @@
         <button id="copy-active-button" type="button">Copy</button>
       </div>
 
-    </section>
+      </section>
+
+      <section class="panel version-panel" id="version-panel">
+        <div class="panel-header">
+          <div>
+            <h2 id="version-detail-title">Version 7</h2>
+            <p id="version-detail-kind">Time-ordered UUID</p>
+          </div>
+        </div>
+        <p class="version-detail-summary" id="version-detail-summary"></p>
+        <dl class="version-detail-list">
+          <div>
+            <dt>Layout</dt>
+            <dd id="version-detail-layout"></dd>
+          </div>
+          <div>
+            <dt>Use</dt>
+            <dd id="version-detail-use"></dd>
+          </div>
+        </dl>
+      </section>
+    </div>
 
     <section class="panel inspector-panel" id="inspector-panel" data-state="idle">
       <div class="panel-header">
