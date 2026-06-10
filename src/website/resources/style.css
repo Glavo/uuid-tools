@@ -83,6 +83,20 @@ button:hover {
   font-size: 30px;
 }
 
+.brand h1 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand h1 a:hover {
+  color: #14736d;
+}
+
+.brand h1 a:focus-visible {
+  outline: 2px solid #14736d;
+  outline-offset: 3px;
+}
+
 .brand p,
 .panel-header p {
   margin: 5px 0 0;
