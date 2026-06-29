@@ -1209,6 +1209,7 @@ public final class UUIDs {
     /// Generates a version-7 UUID from the system clock and default random source.
     ///
     /// @return a version-7 UUID
+    /// @see #generateV7(Instant, RandomGenerator)
     public static UUID generateV7() {
         return generateV7(InstantSource.system(), DefaultRandomGenerator.INSTANCE);
     }
@@ -1217,6 +1218,7 @@ public final class UUIDs {
     ///
     /// @param randomGenerator the source of randomness
     /// @return a version-7 UUID
+    /// @see #generateV7(Instant, RandomGenerator)
     /// @since 0.2.0
     public static UUID generateV7(RandomGenerator randomGenerator) {
         return generateV7(InstantSource.system(), randomGenerator);
@@ -1226,6 +1228,7 @@ public final class UUIDs {
     ///
     /// @param instant the timestamp instant
     /// @return a version-7 UUID
+    /// @see #generateV7(Instant, RandomGenerator)
     /// @since 0.2.0
     public static UUID generateV7(Instant instant) {
         return generateV7(instant, DefaultRandomGenerator.INSTANCE);
@@ -1257,6 +1260,7 @@ public final class UUIDs {
     ///
     /// @param instantSource the source of the current time
     /// @return a version-7 UUID
+    /// @see #generateV7(Instant, RandomGenerator)
     /// @since 0.2.0
     public static UUID generateV7(InstantSource instantSource) {
         return generateV7(instantSource, DefaultRandomGenerator.INSTANCE);
@@ -1270,6 +1274,7 @@ public final class UUIDs {
     /// @param instantSource   the source of the current time
     /// @param randomGenerator the source of randomness
     /// @return a version-7 UUID
+    /// @see #generateV7(Instant, RandomGenerator)
     /// @since 0.2.0
     public static UUID generateV7(InstantSource instantSource, RandomGenerator randomGenerator) {
         return generateV7(instantSource.instant(), randomGenerator);
