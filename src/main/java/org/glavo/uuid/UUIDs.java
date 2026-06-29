@@ -1239,6 +1239,18 @@ public final class UUIDs {
     /// The timestamp is obtained from `instant`, and the random payload is
     /// obtained from `randomGenerator`.
     ///
+    /// @implNote UUID v7 allocates 48 bits for a millisecond timestamp and 74
+    /// bits for randomness. The current implementation improves timestamp
+    /// precision beyond the millisecond granularity specified by RFC&nbsp;9562
+    /// by incorporating the [Instant]'s sub-millisecond fraction (10 bits) into
+    /// the random portion. It calls [RandomGenerator::nextLong] only once per
+    /// invocation, providing the remaining 64 random bits.
+    ///
+    /// For full sub-millisecond precision, use [Instant::now] or another source
+    /// that provides nanosecond resolution. An [Instant] obtained via
+    /// [Instant::ofEpochMilli] lacks sub-millisecond precision, causing those
+    /// 10 bits to be zero.
+    ///
     /// @param instant         the timestamp instant
     /// @param randomGenerator the source of randomness
     /// @return a version-7 UUID
