@@ -972,7 +972,7 @@ public final class UUIDs {
     ///
     /// @return a freshly generated version-4 UUID
     public static UUID generateV4() {
-        return generateV4(DefaultRandomGenerator.INSTANCE);
+        return DefaultRandomGenerator.INSTANCE.nextV4();
     }
 
     /// Generates a version-4 UUID using the given random generator.
@@ -1411,7 +1411,7 @@ public final class UUIDs {
     /// @param counter Monotonic input block for SipHash.
     private record DefaultRandomGenerator(long key0, long key1, long xorMask, AtomicLong counter) implements RandomGenerator {
         /// The default random source instance.
-        static final RandomGenerator INSTANCE;
+        static final DefaultRandomGenerator INSTANCE;
 
         static {
             SecureRandom seedSource = new SecureRandom();
@@ -1422,10 +1422,87 @@ public final class UUIDs {
                     new AtomicLong(seedSource.nextLong()));
         }
 
+        /// Computes SipHash-2-4 for a single 8-byte message block.
+        static long sipHash24(long key0, long key1, long message) {
+            long v0 = 0x736f_6d65_7073_6575L ^ key0;
+            long v1 = 0x646f_7261_6e64_6f6dL ^ key1;
+            long v2 = 0x6c79_6765_6e65_7261L ^ key0;
+            long v3 = 0x7465_6462_7974_6573L ^ key1;
+
+            v3 ^= message;
+            for (int i = 0; i < 2; i++) {
+                v0 += v1;
+                v1 = Long.rotateLeft(v1, 13);
+                v1 ^= v0;
+                v0 = Long.rotateLeft(v0, 32);
+                v2 += v3;
+                v3 = Long.rotateLeft(v3, 16);
+                v3 ^= v2;
+                v0 += v3;
+                v3 = Long.rotateLeft(v3, 21);
+                v3 ^= v0;
+                v2 += v1;
+                v1 = Long.rotateLeft(v1, 17);
+                v1 ^= v2;
+                v2 = Long.rotateLeft(v2, 32);
+            }
+            v0 ^= message;
+
+            long finalBlock = 8L << 56;
+            v3 ^= finalBlock;
+            for (int i = 0; i < 2; i++) {
+                v0 += v1;
+                v1 = Long.rotateLeft(v1, 13);
+                v1 ^= v0;
+                v0 = Long.rotateLeft(v0, 32);
+                v2 += v3;
+                v3 = Long.rotateLeft(v3, 16);
+                v3 ^= v2;
+                v0 += v3;
+                v3 = Long.rotateLeft(v3, 21);
+                v3 ^= v0;
+                v2 += v1;
+                v1 = Long.rotateLeft(v1, 17);
+                v1 ^= v2;
+                v2 = Long.rotateLeft(v2, 32);
+            }
+            v0 ^= finalBlock;
+
+            v2 ^= 0xffL;
+            for (int i = 0; i < 4; i++) {
+                v0 += v1;
+                v1 = Long.rotateLeft(v1, 13);
+                v1 ^= v0;
+                v0 = Long.rotateLeft(v0, 32);
+                v2 += v3;
+                v3 = Long.rotateLeft(v3, 16);
+                v3 ^= v2;
+                v0 += v3;
+                v3 = Long.rotateLeft(v3, 21);
+                v3 ^= v0;
+                v2 += v1;
+                v1 = Long.rotateLeft(v1, 17);
+                v1 ^= v2;
+                v2 = Long.rotateLeft(v2, 32);
+            }
+            return v0 ^ v1 ^ v2 ^ v3;
+        }
+
         /// Returns the next 64 pseudorandom bits.
         @Override
         public long nextLong() {
             return sipHash24(key0, key1, counter.getAndIncrement()) ^ xorMask;
+        }
+
+        /// Generates a version-4 UUID by reserving two consecutive SipHash
+        /// input blocks from this generator's shared counter.
+        ///
+        /// @return a version-4 UUID generated from this default random source
+        private UUID nextV4() {
+            long current = counter.getAndAdd(2);
+            long msb = sipHash24(key0, key1, current) ^ xorMask;
+            long lsb = sipHash24(key0, key1, current + 1) ^ xorMask;
+            return v4(msb, lsb);
         }
     }
 
@@ -1591,72 +1668,6 @@ public final class UUIDs {
     /// Extracts a random 48-bit node ID from the low bits of a random word and sets the multicast bit.
     private static long randomNode(long randomBits) {
         return (randomBits & NODE_MASK) | RANDOM_NODE_MULTICAST_MASK;
-    }
-
-    /// Computes SipHash-2-4 for a single 8-byte message block.
-    private static long sipHash24(long key0, long key1, long message) {
-        long v0 = 0x736f_6d65_7073_6575L ^ key0;
-        long v1 = 0x646f_7261_6e64_6f6dL ^ key1;
-        long v2 = 0x6c79_6765_6e65_7261L ^ key0;
-        long v3 = 0x7465_6462_7974_6573L ^ key1;
-
-        v3 ^= message;
-        for (int i = 0; i < 2; i++) {
-            v0 += v1;
-            v1 = Long.rotateLeft(v1, 13);
-            v1 ^= v0;
-            v0 = Long.rotateLeft(v0, 32);
-            v2 += v3;
-            v3 = Long.rotateLeft(v3, 16);
-            v3 ^= v2;
-            v0 += v3;
-            v3 = Long.rotateLeft(v3, 21);
-            v3 ^= v0;
-            v2 += v1;
-            v1 = Long.rotateLeft(v1, 17);
-            v1 ^= v2;
-            v2 = Long.rotateLeft(v2, 32);
-        }
-        v0 ^= message;
-
-        long finalBlock = 8L << 56;
-        v3 ^= finalBlock;
-        for (int i = 0; i < 2; i++) {
-            v0 += v1;
-            v1 = Long.rotateLeft(v1, 13);
-            v1 ^= v0;
-            v0 = Long.rotateLeft(v0, 32);
-            v2 += v3;
-            v3 = Long.rotateLeft(v3, 16);
-            v3 ^= v2;
-            v0 += v3;
-            v3 = Long.rotateLeft(v3, 21);
-            v3 ^= v0;
-            v2 += v1;
-            v1 = Long.rotateLeft(v1, 17);
-            v1 ^= v2;
-            v2 = Long.rotateLeft(v2, 32);
-        }
-        v0 ^= finalBlock;
-
-        v2 ^= 0xffL;
-        for (int i = 0; i < 4; i++) {
-            v0 += v1;
-            v1 = Long.rotateLeft(v1, 13);
-            v1 ^= v0;
-            v0 = Long.rotateLeft(v0, 32);
-            v2 += v3;
-            v3 = Long.rotateLeft(v3, 16);
-            v3 ^= v2;
-            v0 += v3;
-            v3 = Long.rotateLeft(v3, 21);
-            v3 ^= v0;
-            v2 += v1;
-            v1 = Long.rotateLeft(v1, 17);
-            v1 ^= v2;
-            v2 = Long.rotateLeft(v2, 32);
-        }
-        return v0 ^ v1 ^ v2 ^ v3;
     }
 
     /// Computes a name-based UUID (version 3 or 5) from a byte-array name.
